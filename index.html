@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KanzleiPlus - E-Mail Assistent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #1C3A52; --accent-hover: #15293B; --accent-light: rgba(28,58,82,0.1); --accent-lighter: rgba(28,58,82,0.05);
+            --bg-primary: #FFFFFF; --bg-secondary: #F8FAFB; --bg-tertiary: #F3F4F6; --bg-elevated: #FFFFFF;
+            --text-primary: #111827; --text-secondary: #6B7280; --text-tertiary: #9CA3AF;
+            --border: #E5E7EB; --border-light: #F3F4F6;
+            --success: #10B981; --success-light: rgba(16,185,129,0.1);
+            --warning: #F59E0B; --warning-light: rgba(245,158,11,0.1);
+            --error: #EF4444; --error-light: rgba(239,68,68,0.1);
+            --info: #3B82F6; --info-light: rgba(59,130,246,0.1);
+            --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            --shadow-xl: 0 25px 50px -12px rgba(0,0,0,0.25);
+            --transition-fast: all .15s cubic-bezier(.4,0,.2,1);
+            --transition: all .2s cubic-bezier(.4,0,.2,1);
+            --transition-slow: all .3s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* Base Styles */
+        body { 
+            font-family: -apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif; 
+            background: var(--bg-secondary); 
+            color: var(--text-primary); 
+            line-height: 1.6; 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            overflow-x: hidden;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Taskpane Container */
+        .taskpane {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: var(--bg-secondary);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .taskpane-header {
+            padding: 20px;
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-image {
+            height: 26px;
+            width: auto;
+            max-width: 130px;
+            object-fit: contain;
+        }
+
+        /* Content Area */
+        .taskpane-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .taskpane-content::-webkit-scrollbar { 
+            width: 6px; 
+        }
+        .taskpane-content::-webkit-scrollbar-track { 
+            background: transparent; 
+        }
+        .taskpane-content::-webkit-scrollbar-thumb { 
+            background: var(--border); 
+            border-radius: 4px; 
+        }
+        .taskpane-content::-webkit-scrollbar-thumb:hover { 
+            background: var(--text-tertiary); 
+        }
+
+        /* AI Response Container */
+        .ai-response-container { 
+            background: linear-gradient(135deg, var(--accent-light), rgba(59,130,246,0.05)); 
+            border: 1px solid rgba(28,58,82,0.2); 
+            border-radius: 16px; 
+            padding: 24px; 
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ai-badge { 
+            position: absolute; 
+            top: -10px; 
+            left: 20px; 
+            background: var(--accent); 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 12px; 
+            font-size: 11px; 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .response-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            margin-top: 8px;
+        }
+
+        .response-editor { 
+            background: var(--bg-primary); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 16px; 
+            font-size: 14px; 
+            line-height: 1.6; 
+            resize: none; 
+            width: 100%; 
+            font-family: inherit;
+            transition: var(--transition);
+            flex: 1;
+            min-height: 200px;
+            color: var(--text-primary);
+        }
+        
+        .response-editor:focus { 
+            outline: none; 
+            border-color: var(--accent); 
+            box-shadow: 0 0 0 3px var(--accent-light); 
+        }
+
+        /* Sources Toggle Section */
+        .sources-toggle {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .sources-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-primary);
+        }
+
+        .sources-header:hover {
+            background: var(--bg-secondary);
+        }
+
+        .sources-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sources-header-left svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text-secondary);
+        }
+
+        .sources-header-left span {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sources-count {
+            background: var(--success-light);
+            color: var(--success);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .sources-chevron {
+            width: 18px;
+            height: 18px;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .sources-toggle.expanded .sources-chevron {
+            transform: rotate(180deg);
+        }
+
+        .sources-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .sources-toggle.expanded .sources-content {
+            max-height: 500px;
+        }
+
+        .sources-list {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .source-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+
+        .source-chip:hover {
+            background: var(--accent-light);
+        }
+
+        .source-chip-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            background: var(--success-light);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .source-chip-icon svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .source-chip-text {
+            flex: 1;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            box-shadow: var(--shadow);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .action-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Modal/Popup Overlay */
+        .modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.6); 
+            backdrop-filter: blur(4px); 
+            display: none; 
+            z-index: 1000; 
+            animation: fadeIn 0.3s ease; 
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active { 
+            display: flex; 
+        }
+
+        @keyframes fadeIn { 
+            from { opacity: 0; } 
+            to { opacity: 1; } 
+        }
+
+        @keyframes slideUp { 
+            from { transform: translateY(40px) scale(0.95); opacity: 0; } 
+            to { transform: translateY(0) scale(1); opacity: 1; } 
+        }
+
+        /* Modal Content */
+        .modal-content { 
+            width: 90%; 
+            max-width: 500px; 
+            background: var(--bg-primary); 
+            border-radius: 20px; 
+            box-shadow: var(--shadow-xl); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+            animation: slideUp 0.4s ease;
+            max-height: 80vh;
+        }
+
+        .modal-header { 
+            padding: 20px 24px; 
+            border-bottom: 1px solid var(--border-light); 
+            background: var(--bg-secondary); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            flex-shrink: 0;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .close-btn { 
+            width: 36px; 
+            height: 36px; 
+            border-radius: 10px; 
+            background: var(--bg-tertiary); 
+            border: 1px solid var(--border-light); 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            transition: var(--transition);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .close-btn:hover { 
+            background: var(--error-light); 
+            border-color: var(--error); 
+            color: var(--error); 
+        }
+
+        .modal-body {
+            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: inherit;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: var(--transition);
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-light);
+            background: var(--bg-secondary);
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 12px 20px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--text-tertiary);
+        }
+
+        .btn-primary {
+            flex: 1;
+            padding: 12px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="taskpane">
+        <!-- Header -->
+        <div class="taskpane-header">
+            <div class="logo">
+                <img src="https://imgur.com/beCyw1k.png" alt="KanzleiPlus" class="logo-image">
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="taskpane-content">
+            <!-- AI Response Container -->
+            <div class="ai-response-container">
+                <div class="ai-badge">KI-Antwort</div>
+                <div class="response-label">Generierte Antwort</div>
+                <textarea 
+                    class="response-editor" 
+                    id="responseEditor"
+                    placeholder="Die KI-generierte Antwort erscheint hier..."
+                >Sehr geehrte Frau Becker,
+
+vielen Dank für Ihre E-Mail zur Umsatzsteuervoranmeldung Q3 2025.
+
+Zu Ihren drei Fragen kann ich Ihnen folgende Auskunft geben:
+
+1. Microsoft Office 365-Lizenzen:
+Als Software-as-a-Service (SaaS) unterliegen diese dem Reverse-Charge-Verfahren nach § 13b UStG. Die Umsatzsteuer wird nicht von Microsoft, sondern von Ihnen als Leistungsempfänger geschuldet. Sie können jedoch den Vorsteuerabzug nach § 15 UStG geltend machen.
+
+2. Adobe Entwicklungstools:
+Gleiches gilt für die Adobe-Lizenzen. Bei Jahresabonnements erfolgt die ratierliche Erfassung über 12 Monate gemäß § 11 EStG.
+
+3. AWS Cloud-Services:
+Auch hier greift das Reverse-Charge-Verfahren. Variable Kosten werden monatlich bei Rechnungserhalt erfasst.
+
+Für eine detaillierte Besprechung stehe ich Ihnen gerne zeitnah zur Verfügung. Ich schlage vor, dass wir morgen um 10:00 Uhr telefonieren.
+
+Mit freundlichen Grüßen
+Dr. Maria Müller</textarea>
+            </div>
+
+            <!-- Sources Toggle -->
+            <div class="sources-toggle" id="sourcesToggle">
+                <div class="sources-header" onclick="toggleSources()">
+                    <div class="sources-header-left">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span>Verwendete Quellen</span>
+                        <span class="sources-count">4</span>
+                    </div>
+                    <svg class="sources-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+                <div class="sources-content">
+                    <div class="sources-list">
+                        <div class="source-chip">
+                            <div class="source-chip-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <span class="source-chip-text">§ 13b UStG - Reverse-Charge</span>
+                        </div>
+                        <div class="source-chip">
+                            <div class="source-chip-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <span class="source-chip-text">BMF-Schreiben Cloud-Computing</span>
+                        </div>
+                        <div class="source-chip">
+                            <div class="source-chip-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <span class="source-chip-text">§ 15 UStG - Vorsteuerabzug</span>
+                        </div>
+                        <div class="source-chip">
+                            <div class="source-chip-icon">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <span class="source-chip-text">Mandantenakte Müller GmbH</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="action-btn btn-primary" onclick="insertResponse()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    In E-Mail einfügen
+                </button>
+                <button class="action-btn btn-secondary" onclick="openPromptModal()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Mit Prompt neu generieren
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div class="modal-overlay" id="promptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Antwort anpassen</h3>
+                <button class="close-btn" onclick="closePromptModal()" aria-label="Schließen">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="promptInput">Ihre Anweisungen</label>
+                    <textarea 
+                        class="form-input" 
+                        id="promptInput" 
+                        placeholder="Beschreiben Sie, wie die Antwort angepasst werden soll...&#10;&#10;Beispiel: 'Formuliere die Antwort freundlicher und füge einen Hinweis auf unsere Sprechzeiten hinzu.'"
+                    ></textarea>
+                    <div class="form-hint">Geben Sie spezifische Anweisungen, um die generierte Antwort anzupassen.</div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closePromptModal()">Abbrechen</button>
+                <button class="btn-primary" onclick="generateWithPrompt()">Generieren</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================
+        // SOURCES TOGGLE
+        // ================================
+        
+        function toggleSources() {
+            const sourcesToggle = document.getElementById('sourcesToggle');
+            sourcesToggle.classList.toggle('expanded');
+        }
+
+        // ================================
+        // RESPONSE ACTIONS
+        // ================================
+        
+        function insertResponse() {
+            const responseText = document.getElementById('responseEditor').value;
+            
+            if (!responseText.trim()) {
+                alert('Keine Antwort zum Einfügen vorhanden.');
+                return;
+            }
+
+            // Here you would use Office.js to insert the text into the email body
+            console.log('Füge Antwort in E-Mail ein:', responseText);
+            
+            // Example Office.js implementation:
+            // Office.context.mailbox.item.body.setSelectedDataAsync(
+            //     responseText,
+            //     { coercionType: Office.CoercionType.Text },
+            //     function(result) {
+            //         if (result.status === Office.AsyncResultStatus.Succeeded) {
+            //             console.log('✅ Text erfolgreich eingefügt');
+            //         }
+            //     }
+            // );
+
+            // Visual feedback
+            alert('Antwort wurde in die E-Mail eingefügt!');
+        }
+
+        // ================================
+        // MODAL FUNCTIONS
+        // ================================
+        
+        function openPromptModal() {
+            const modal = document.getElementById('promptModal');
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Focus the textarea
+            setTimeout(() => {
+                document.getElementById('promptInput').focus();
+            }, 100);
+        }
+
+        function closePromptModal() {
+            const modal = document.getElementById('promptModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Clear input
+            document.getElementById('promptInput').value = '';
+        }
+
+        function generateWithPrompt() {
+            const promptInput = document.getElementById('promptInput');
+            const promptText = promptInput.value.trim();
+            
+            if (!promptText) {
+                alert('Bitte geben Sie Anweisungen ein.');
+                return;
+            }
+
+            // Close modal
+            closePromptModal();
+            
+            // Here you would typically:
+            // 1. Send the prompt to your AI service
+            // 2. Generate the response
+            // 3. Update the textarea with the new response
+            console.log('Generiere neue Antwort mit Prompt:', promptText);
+            
+            // Simulate generation (in real app, this would be an API call)
+            const responseEditor = document.getElementById('responseEditor');
+            responseEditor.value = 'Generiere neue Antwort...\n\n(API-Integration erforderlich)';
+            
+            // Visual feedback
+            setTimeout(() => {
+                alert('Neue Antwort wurde generiert!');
+            }, 500);
+        }
+
+        // ================================
+        // EVENT HANDLERS
+        // ================================
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('promptModal');
+                if (modal.classList.contains('active')) {
+                    closePromptModal();
+                }
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('promptModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePromptModal();
+            }
+        });
+
+        // ================================
+        // INITIALIZATION
+        // ================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ KanzleiPlus Outlook Taskpane geladen');
+            
+            // Initialize Office.js if available
+            if (typeof Office !== 'undefined') {
+                Office.onReady(function() {
+                    console.log('✅ Office.js bereit');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
