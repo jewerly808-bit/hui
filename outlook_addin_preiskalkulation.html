@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrintCalc Pro - Outlook Add-In</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --accent: #113e18;
+            --accent-hover: #0d2f12; 
+            --accent-light: rgba(17,62,24,0.1); 
+            --accent-lighter: rgba(17,62,24,0.05);
+            --bg-primary: #FFFFFF; 
+            --bg-secondary: #F8FAFB; 
+            --bg-tertiary: #F3F4F6; 
+            --bg-elevated: #FFFFFF;
+            --text-primary: #111827; 
+            --text-secondary: #6B7280; 
+            --text-tertiary: #9CA3AF;
+            --border: #E5E7EB; 
+            --border-light: #F3F4F6;
+            --success: #16a34a; 
+            --success-light: rgba(22,163,74,0.1);
+            --warning: #F59E0B; 
+            --warning-light: rgba(245,158,11,0.1);
+            --error: #EF4444; 
+            --error-light: rgba(239,68,68,0.1);
+            --info: #2563eb; 
+            --info-light: rgba(37,99,235,0.1);
+            --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            --transition-fast: all .15s cubic-bezier(.4,0,.2,1);
+            --transition: all .2s cubic-bezier(.4,0,.2,1);
+            --transition-slow: all .3s cubic-bezier(.4,0,.2,1);
+        }
+
+        body { 
+            font-family: -apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif; 
+            background: var(--bg-primary); 
+            color: var(--text-primary); 
+            line-height: 1.6; 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tab Navigation Header */
+        .tab-header {
+            height: 50px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: stretch;
+            flex-shrink: 0;
+        }
+
+        .tab-button {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: none;
+            border-right: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-button:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .tab-button.active {
+            background: var(--bg-primary);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Content Container */
+        .content-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ================================
+           DASHBOARD (Anfrage-Analyse)
+           ================================ */
+        
+        .dashboard-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-primary);
+        }
+
+        .dashboard-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title-dash {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .email-preview {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .email-from {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .email-from strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .requirements-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .requirement-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .requirement-row:last-child {
+            border-bottom: none;
+        }
+
+        .requirement-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .requirement-value {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .calc-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+            margin-top: 16px;
+        }
+
+        .calc-button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .calc-button:active {
+            transform: translateY(0);
+        }
+
+        /* ================================
+           KALKULATION (Mittlere Seite)
+           ================================ */
+        
+        .calculation-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--bg-primary);
+        }
+
+        .calc-header {
+            text-align: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .calc-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .calc-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Price Display */
+        .price-box { 
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover)); 
+            border-radius: 14px; 
+            padding: 28px 20px; 
+            color: white; 
+            text-align: center; 
+            box-shadow: var(--shadow-lg);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .price-box.loading::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: loading-shimmer 1.5s infinite;
+        }
+
+        @keyframes loading-shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .price-box.loading .price-content {
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .price-content {
+            transition: var(--transition);
+            width: 100%;
+        }
+
+        .price-label { 
+            font-size: 12px; 
+            opacity: 0.9; 
+            margin-bottom: 6px; 
+            text-transform: uppercase; 
+            letter-spacing: 0.1em; 
+        }
+
+        .price-amount { 
+            font-size: 42px; 
+            font-weight: 700; 
+            margin-bottom: 6px; 
+            letter-spacing: -0.02em; 
+        }
+
+        .price-subtext { 
+            font-size: 14px; 
+            opacity: 0.85; 
+        }
+
+        .price-range { 
+            font-size: 12px; 
+            opacity: 0.75; 
+            margin-top: 10px; 
+            padding-top: 10px; 
+            border-top: 1px solid rgba(255,255,255,0.3); 
+        }
+
+        .loading-indicator {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .price-box.loading .loading-indicator {
+            display: block;
+        }
+
+        .loading-spinner {
+            width: 45px;
+            height: 45px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 14px;
+        }
+
+        .loading-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: white;
+            opacity: 0.9;
+            letter-spacing: 0.05em;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Cost Breakdown */
+        .breakdown-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+        }
+
+        .breakdown-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 14px;
+        }
+
+        .breakdown-table { 
+            width: 100%; 
+            transition: var(--transition); 
+        }
+
+        .breakdown-table.loading {
+            opacity: 0.4;
+            filter: blur(1px);
+        }
+
+        .breakdown-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 0; 
+            border-bottom: 1px solid var(--border-light); 
+        }
+
+        .breakdown-row:last-child { 
+            border-bottom: none; 
+            font-weight: 600; 
+            padding-top: 14px; 
+            margin-top: 6px; 
+            border-top: 2px solid var(--border); 
+        }
+
+        .breakdown-label { 
+            font-size: 13px; 
+            color: var(--text-secondary); 
+        }
+
+        .breakdown-row:last-child .breakdown-label { 
+            color: var(--text-primary); 
+        }
+
+        .breakdown-value { 
+            font-size: 13px; 
+            font-weight: 500; 
+            color: var(--text-primary); 
+        }
+
+        .breakdown-row:last-child .breakdown-value { 
+            font-size: 15px; 
+            color: var(--accent); 
+        }
+
+        /* Product Details */
+        .details-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .details-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--accent);
+        }
+
+        /* Info Box */
+        .info-box {
+            background: var(--info-light);
+            border: 1px solid rgba(37,99,235,0.3);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+
+        .info-box strong {
+            color: var(--text-primary);
+        }
+
+        /* Email Editor */
+        .email-editor-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .email-editor-header {
+            background: var(--bg-secondary);
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .email-editor-field {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .email-editor-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .email-field-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 60px;
+        }
+
+        .email-field-value {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .email-editor-body {
+            padding: 0;
+        }
+
+        .email-textarea {
+            width: 100%;
+            min-height: 500px;
+            padding: 16px;
+            border: none;
+            font-family: -apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif;
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            resize: vertical;
+            outline: none;
+        }
+
+        .email-textarea:focus {
+            background: var(--bg-primary);
+        }
+
+        /* Scrollbar */
+        .dashboard-container::-webkit-scrollbar,
+        .calculation-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dashboard-container::-webkit-scrollbar-track,
+        .calculation-container::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        .dashboard-container::-webkit-scrollbar-thumb,
+        .calculation-container::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .dashboard-container::-webkit-scrollbar-thumb:hover,
+        .calculation-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Tab Navigation -->
+    <div class="tab-header">
+        <button class="tab-button active" onclick="switchTab('dashboard')">
+            Anfrage-Analyse
+        </button>
+        <button class="tab-button" onclick="switchTab('calculation')" id="calculationTab">
+            Preiskalkulation
+        </button>
+        <button class="tab-button" onclick="switchTab('email')" id="emailTab">
+            E-Mail Entwurf
+        </button>
+    </div>
+
+    <!-- Content Container -->
+    <div class="content-container">
+        <!-- DASHBOARD TAB (Anfrage-Analyse) -->
+        <div id="dashboard" class="tab-content active">
+            <div class="dashboard-container">
+                <!-- Summary -->
+                <div class="dashboard-section">
+                    <h2 class="section-title-dash">Zusammenfassung</h2>
+                    <div class="email-preview">
+                        <div class="email-from">
+                            <strong>Kunde:</strong> Thomas Weber (Weber Consulting GmbH)
+                        </div>
+                        <div class="email-from">
+                            <strong>Anfrage:</strong> Angebot für hochwertige Visitenkarten mit Premium-Veredelung
+                        </div>
+                        <div style="margin-top: 12px; padding: 12px; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--border-light); font-size: 13px; line-height: 1.6; color: var(--text-primary);">
+                            Der Kunde benötigt 500 Standard-Visitenkarten (85×55mm) auf Premium-Papier (350g/m² matt) mit beidseitigem 4/4-Farbdruck. Gewünscht wird eine hochwertige Veredelung mit Matt-Cellophanierung und zusätzlichem partiellen UV-Lack für das Firmenlogo. Standard-Lieferzeit ist ausreichend.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extracted Requirements -->
+                <div class="dashboard-section">
+                    <h2 class="section-title-dash">Extrahierte Anforderungen</h2>
+                    <div class="requirements-card">
+                        <div class="requirement-row">
+                            <span class="requirement-label">Produkt</span>
+                            <span class="requirement-value">Visitenkarten</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Format</span>
+                            <span class="requirement-value">85 × 55 mm</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Auflage</span>
+                            <span class="requirement-value">500 Stück</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Papierqualität</span>
+                            <span class="requirement-value">350g/m² matt (Premium)</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Farbigkeit</span>
+                            <span class="requirement-value">4/4-farbig (beidseitig)</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Veredelung</span>
+                            <span class="requirement-value">Matt-Cellophanierung + UV-Lack</span>
+                        </div>
+                        <div class="requirement-row">
+                            <span class="requirement-label">Lieferzeit</span>
+                            <span class="requirement-value">Standard (5-7 Tage)</span>
+                        </div>
+                    </div>
+
+                    <button class="calc-button" onclick="startCalculation()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Preis kalkulieren
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALCULATION TAB (Preiskalkulation) -->
+        <div id="calculation" class="tab-content">
+            <div class="calculation-container">
+                <!-- Header -->
+                <div class="calc-header">
+                    <h1 class="calc-title">Preiskalkulation</h1>
+                    <p class="calc-subtitle">Visitenkarten für Weber Consulting GmbH</p>
+                </div>
+
+                <!-- Price Display -->
+                <div class="price-box" id="priceBox">
+                    <div class="loading-indicator">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Software kalkuliert</div>
+                    </div>
+                    <div class="price-content">
+                        <div class="price-label">Gesamtpreis</div>
+                        <div class="price-amount" id="totalPriceNet">—</div>
+                        <div class="price-subtext" id="totalPriceGross">—</div>
+                        <div class="price-range" id="priceRange">—</div>
+                    </div>
+                </div>
+
+                <!-- Product Details -->
+                <div class="details-card">
+                    <div class="details-title">Produktdetails</div>
+                    <div class="detail-item">
+                        <span class="detail-label">Format:</span>
+                        <span class="detail-value">85 × 55 mm</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Auflage:</span>
+                        <span class="detail-value">500 Stück</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Papier:</span>
+                        <span class="detail-value">350g/m² matt (Premium)</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Farbigkeit:</span>
+                        <span class="detail-value">4/4-farbig (beidseitig)</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Veredelung:</span>
+                        <span class="detail-value">Matt-Cellophanierung + UV-Lack</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Lieferzeit:</span>
+                        <span class="detail-value">Standard (5-7 Tage)</span>
+                    </div>
+                </div>
+
+                <!-- Cost Breakdown -->
+                <div class="breakdown-card">
+                    <div class="breakdown-title">Kostenaufschlüsselung</div>
+                    <div class="breakdown-table" id="breakdownTable">
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Papierkosten</span>
+                            <span class="breakdown-value" id="costPaper">—</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Druckkosten</span>
+                            <span class="breakdown-value" id="costPrint">—</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Veredelung</span>
+                            <span class="breakdown-value" id="costFinishing">—</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Weiterverarbeitung</span>
+                            <span class="breakdown-value" id="costProcessing">—</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Marge (25%)</span>
+                            <span class="breakdown-value" id="costMargin">—</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span class="breakdown-label">Gesamtpreis (netto)</span>
+                            <span class="breakdown-value" id="totalBreakdown">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="loadIntoERP()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                        In ERP Laden
+                    </button>
+                    <button class="btn-primary" onclick="goToEmailDraft()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        E-Mail schreiben
+                    </button>
+                </div>
+
+                <!-- Info Box -->
+                <div class="info-box">
+                    <strong>Hinweis:</strong> Diese Preiskalkulation basiert auf aktuellen Marktdaten und durchschnittlichen Produktionskosten. Alle Preise verstehen sich zzgl. MwSt. Die tatsächlichen Kosten können je nach Anbieter und Marktlage variieren.
+                </div>
+            </div>
+        </div>
+
+        <!-- EMAIL DRAFT TAB -->
+        <div id="email" class="tab-content">
+            <div class="calculation-container">
+                <!-- Header -->
+                <div class="calc-header">
+                    <h1 class="calc-title">E-Mail Entwurf</h1>
+                    <p class="calc-subtitle">Antwort an Thomas Weber</p>
+                </div>
+
+                <!-- Email Editor -->
+                <div class="email-editor-card">
+                    <div class="email-editor-header">
+                        <div class="email-editor-field">
+                            <span class="email-field-label">An:</span>
+                            <span class="email-field-value">Thomas Weber &lt;t.weber@weber-consulting.de&gt;</span>
+                        </div>
+                        <div class="email-editor-field">
+                            <span class="email-field-label">Betreff:</span>
+                            <span class="email-field-value">Re: Angebot für Visitenkarten benötigt</span>
+                        </div>
+                    </div>
+                    <div class="email-editor-body">
+                        <textarea id="emailDraftText" class="email-textarea" readonly>Sehr geehrter Herr Weber,
+
+vielen Dank für Ihre Anfrage bezüglich der Visitenkarten für die Weber Consulting GmbH.
+
+Gerne unterbreite ich Ihnen folgendes Angebot:
+
+PRODUKTSPEZIFIKATION:
+• Format: 85 × 55 mm (Standard-Visitenkarte)
+• Auflage: 500 Stück
+• Papier: 350 g/m² matt (Premium-Qualität)
+• Farbigkeit: 4/4-farbig (beidseitiger Vollfarbdruck)
+• Veredelung: Matt-Cellophanierung für hochwertigen, edlen Look
+• Zusätzlich: Partieller UV-Lack auf Ihrem Firmenlogo
+• Lieferzeit: 5-7 Werktage (Standard)
+
+PREIS:
+Netto: [PREIS_WIRD_EINGEFÜGT]
+Brutto: [PREIS_WIRD_EINGEFÜGT]
+
+Die Visitenkarten werden auf hochwertigem 350g/m² Premium-Papier mit matter Oberfläche gedruckt. Die Matt-Cellophanierung schützt die Karten vor Abnutzung und verleiht ihnen eine elegante, seidige Haptik. Ihr Firmenlogo wird durch den partiellen UV-Lack besonders hervorgehoben – dieser erzeugt einen edlen Kontrast zur matten Oberfläche und zieht die Aufmerksamkeit auf Ihr Branding.
+
+NÄCHSTE SCHRITTE:
+Für die Produktion benötigen wir von Ihnen:
+• Druckdaten im PDF-Format (CMYK, 3mm Beschnitt)
+• Hochauflösendes Firmenlogo (mindestens 300 dpi)
+• Information, welche Bereiche mit UV-Lack veredelt werden sollen
+
+Nach Eingang Ihrer Daten erstellen wir einen digitalen Proof zur Freigabe. Nach Ihrer Freigabe beginnen wir umgehend mit der Produktion.
+
+Der angegebene Preis beinhaltet:
+• Professionelle Druckvorstufe und Qualitätskontrolle
+• Kostenlose Musterprüfung vor Produktionsbeginn
+• Versandkosten innerhalb Deutschlands
+• 30 Tage Zahlungsziel
+
+Bei Fragen zur Datenaufbereitung oder zu den technischen Spezifikationen stehe ich Ihnen gerne zur Verfügung. Falls Sie mit dem Angebot einverstanden sind, senden Sie mir bitte eine kurze Bestätigung, damit wir die Produktion für Sie vorbereiten können.
+
+Mit freundlichen Grüßen</textarea>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons" style="margin-top: 20px;">
+                    <button class="btn-primary" onclick="insertIntoOutlook()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        In Outlook einfügen
+                    </button>
+                    <button class="btn-secondary" onclick="copyEmailDraft()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        Kopieren
+                    </button>
+                </div>
+
+                <!-- Info Box -->
+                <div class="info-box" style="margin-top: 16px;">
+                    <strong>Hinweis:</strong> Die E-Mail enthält Platzhalter für die Preise. Diese werden automatisch eingefügt, sobald die Kalkulation abgeschlossen ist.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================
+        // TAB SWITCHING
+        // ================================
+        
+        function switchTab(tabName) {
+            // Update tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // ================================
+        // PRICE CALCULATION
+        // ================================
+
+        let calculationTimeout = null;
+        let calculatedPriceNet = 0;
+        let calculatedPriceGross = 0;
+
+        function startCalculation() {
+            // Switch to calculation tab
+            const calculationTab = document.getElementById('calculationTab');
+            calculationTab.click();
+            
+            // Start calculation after a short delay
+            setTimeout(() => {
+                calculatePrice();
+            }, 300);
+        }
+
+        function calculatePrice() {
+            // Show loading state
+            const priceBox = document.getElementById('priceBox');
+            const breakdownTable = document.getElementById('breakdownTable');
+            
+            priceBox.classList.add('loading');
+            breakdownTable.classList.add('loading');
+
+            // Clear any existing timeout
+            if (calculationTimeout) {
+                clearTimeout(calculationTimeout);
+            }
+
+            // Random delay between 2-5 seconds for realistic effect
+            const delay = 2000 + Math.random() * 3000;
+
+            calculationTimeout = setTimeout(() => {
+                // Base calculation for 500 Visitenkarten, 85x55mm
+                // Premium paper (350g/m²), 4/4-farbig, matt cellophanierung + UV-Lack
+                
+                const basePrice = 95; // Base for 500 cards
+                const premiumMultiplier = 1.15; // Premium paper
+                const mattCelloFinishing = 15; // Matt cellophanierung
+                const uvLackFinishing = 35; // Partieller UV-Lack
+                
+                let subtotal = basePrice * premiumMultiplier;
+                const totalFinishing = mattCelloFinishing + uvLackFinishing;
+                
+                // Cost breakdown
+                const paperCost = subtotal * 0.25;
+                const printCost = subtotal * 0.58;
+                const processingCost = subtotal * 0.17;
+                const costsBeforeMargin = paperCost + printCost + totalFinishing + processingCost;
+                
+                // Margin (25%)
+                const marginAmount = costsBeforeMargin * 0.25;
+                
+                // Total
+                const totalNet = costsBeforeMargin + marginAmount;
+                const totalGross = totalNet * 1.19;
+                
+                // Store for email insertion
+                calculatedPriceNet = totalNet;
+                calculatedPriceGross = totalGross;
+                
+                // Price range (±5%)
+                const priceMin = totalNet * 0.95;
+                const priceMax = totalNet * 1.05;
+                
+                // Update UI
+                document.getElementById('totalPriceNet').textContent = totalNet.toFixed(2) + ' €';
+                document.getElementById('totalPriceGross').textContent = 'inkl. 19% MwSt: ' + totalGross.toFixed(2) + ' €';
+                document.getElementById('priceRange').textContent = `Preisspanne: ${priceMin.toFixed(2)} € - ${priceMax.toFixed(2)} € (netto)`;
+                
+                // Update breakdown
+                document.getElementById('costPaper').textContent = paperCost.toFixed(2) + ' €';
+                document.getElementById('costPrint').textContent = printCost.toFixed(2) + ' €';
+                document.getElementById('costFinishing').textContent = totalFinishing.toFixed(2) + ' €';
+                document.getElementById('costProcessing').textContent = processingCost.toFixed(2) + ' €';
+                document.getElementById('costMargin').textContent = marginAmount.toFixed(2) + ' €';
+                document.getElementById('totalBreakdown').textContent = totalNet.toFixed(2) + ' €';
+                
+                // Update email draft with calculated prices
+                updateEmailDraftPrices(totalNet, totalGross);
+                
+                // Remove loading state
+                priceBox.classList.remove('loading');
+                breakdownTable.classList.remove('loading');
+            }, delay);
+        }
+
+        function updateEmailDraftPrices(netPrice, grossPrice) {
+            const emailTextarea = document.getElementById('emailDraftText');
+            let emailText = emailTextarea.value;
+            
+            // Replace placeholders with actual prices
+            emailText = emailText.replace('[PREIS_WIRD_EINGEFÜGT]', netPrice.toFixed(2) + ' €');
+            emailText = emailText.replace('[PREIS_WIRD_EINGEFÜGT]', grossPrice.toFixed(2) + ' €');
+            
+            emailTextarea.value = emailText;
+        }
+
+        function loadIntoERP() {
+            // Check if price is calculated
+            if (calculatedPriceNet === 0) {
+                alert('Bitte führen Sie zuerst die Preiskalkulation durch.');
+                return;
+            }
+            
+            // Collect all calculation data
+            const erpData = {
+                kunde: 'Weber Consulting GmbH',
+                kontakt: 'Thomas Weber',
+                produkt: 'Visitenkarten Premium',
+                format: '85 × 55 mm',
+                auflage: 500,
+                papier: '350g/m² matt (Premium)',
+                farbigkeit: '4/4-farbig',
+                veredelung: 'Matt-Cellophanierung + UV-Lack',
+                lieferzeit: 'Standard (5-7 Tage)',
+                preisNetto: calculatedPriceNet.toFixed(2),
+                preisBrutto: calculatedPriceGross.toFixed(2),
+                datum: new Date().toLocaleDateString('de-DE')
+            };
+            
+            // In real implementation: API call to ERP system
+            // fetch('/api/erp/orders', { method: 'POST', body: JSON.stringify(erpData) })
+            
+            // For demo: show success message
+            alert(`✅ Auftrag wurde erfolgreich ins ERP-System geladen!\n\nKunde: ${erpData.kunde}\nProdukt: ${erpData.produkt}\nPreis (netto): ${erpData.preisNetto} €\n\n(In der echten Implementierung würde dies per API an Ihr ERP-System übermittelt werden)`);
+        }
+
+        function goToEmailDraft() {
+            // Check if price is calculated
+            if (calculatedPriceNet === 0) {
+                alert('Bitte führen Sie zuerst die Preiskalkulation durch.');
+                return;
+            }
+            
+            // Switch to email tab
+            const emailTab = document.getElementById('emailTab');
+            emailTab.click();
+        }
+
+        // ================================
+        // ACTION FUNCTIONS
+        // ================================
+
+        function insertIntoOutlook() {
+            const emailText = document.getElementById('emailDraftText').value;
+            
+            // Check if prices are inserted
+            if (emailText.includes('[PREIS_WIRD_EINGEFÜGT]')) {
+                alert('Bitte führen Sie zuerst die Preiskalkulation durch, damit die Preise eingefügt werden können.');
+                return;
+            }
+            
+            // In real Outlook Add-in: Office.context.mailbox.item.body.setAsync(...)
+            // For demo: copy to clipboard
+            navigator.clipboard.writeText(emailText).then(() => {
+                alert('E-Mail wurde in die Zwischenablage kopiert!\n\n(In der echten Add-in-Umgebung würde dies direkt in den E-Mail-Editor von Outlook eingefügt werden)');
+            });
+        }
+
+        function copyEmailDraft() {
+            const emailText = document.getElementById('emailDraftText').value;
+            
+            navigator.clipboard.writeText(emailText).then(() => {
+                const btn = event.target.closest('.btn-secondary');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: inline-block; vertical-align: middle; margin-right: 6px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Kopiert';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            });
+        }
+
+        // ================================
+        // INITIALIZATION
+        // ================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ PrintCalc Pro Outlook Add-In geladen');
+        });
+    </script>
+</body>
+</html>
