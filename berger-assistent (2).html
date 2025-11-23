@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Berger Assistent - Intelligent Outlook Add-in</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --brand-primary: #0ea5e9;
+            --brand-dark: #0369a1;
+            --brand-surface: #f0f9ff;
+            
+            --bg-body: #ffffff;
+            --bg-surface: #f8fafc;
+            --bg-card: #ffffff;
+            
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            
+            --border: #e2e8f0;
+            
+            --status-success-bg: #dcfce7;
+            --status-success-text: #166534;
+            --status-warning-bg: #fef9c3;
+            --status-warning-text: #854d0e;
+            --status-danger-bg: #fee2e2;
+            --status-danger-text: #991b1b;
+            
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            
+            --radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header & Tabs --- */
+        .app-header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .tab-nav {
+            display: flex;
+            justify-content: space-around;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--brand-dark);
+            background: var(--bg-surface);
+        }
+
+        .tab-btn.active {
+            color: var(--brand-primary);
+            border-bottom-color: var(--brand-primary);
+        }
+
+        /* --- Main Content Area --- */
+        .main-container {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg-surface);
+            padding: 16px;
+            position: relative;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+            height: 100%;
+        }
+        .tab-content.active { display: flex; flex-direction: column; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .icon-box {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-surface);
+            color: var(--brand-primary);
+            border-radius: 4px;
+        }
+
+        /* --- Email Summary Style --- */
+        .ai-summary {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-main);
+            background: linear-gradient(to right, var(--brand-surface), #fff);
+            border-left: 3px solid var(--brand-primary);
+            padding: 12px;
+            border-radius: 0 var(--radius) var(--radius) 0;
+        }
+
+        .highlight-change {
+            background-color: var(--status-warning-bg);
+            color: var(--status-warning-text);
+            padding: 0 4px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+
+        /* --- ERP Data Table --- */
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { color: var(--text-muted); }
+        .data-value { font-weight: 600; text-align: right; }
+        
+        .diff-indicator {
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        .diff-up { color: var(--status-danger-text); }
+
+        /* --- Action Buttons --- */
+        .btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--brand-primary);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+        .btn-primary:hover { background: var(--brand-dark); }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: white;
+            border-color: var(--border);
+            color: var(--text-main);
+        }
+        .btn-secondary:hover { background: var(--bg-surface); border-color: var(--brand-primary); }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* --- Status Badges --- */
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: var(--status-success-bg); color: var(--status-success-text); }
+        .badge-warning { background: var(--status-warning-bg); color: var(--status-warning-text); }
+        .badge-erp { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+
+        /* --- Chat/Input Area --- */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+        .chat-bubble {
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 85%;
+            line-height: 1.4;
+        }
+        .chat-ai {
+            background: white;
+            border: 1px solid var(--border);
+            align-self: flex-start;
+        }
+        .chat-user {
+            background: var(--brand-surface);
+            color: var(--brand-dark);
+            align-self: flex-end;
+            border: 1px solid #bae6fd;
+        }
+        
+        textarea.modern-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        textarea.modern-input:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+        }
+
+        /* --- FULLSCREEN EMAIL TEXTAREA --- */
+        #reply .card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            margin-bottom: 0;
+        }
+        
+        #emailDraft {
+            flex: 1;
+            resize: none;
+            min-height: 0;
+        }
+
+        /* --- Chat Input Container --- */
+        .chat-input-container {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            background: var(--bg-surface);
+            padding-top: 8px;
+        }
+
+        #chatInput {
+            flex: 1;
+        }
+
+        .send-btn {
+            width: auto;
+            padding: 0 16px;
+        }
+
+        /* Loading Animation */
+        .typing-indicator {
+            display: inline-block;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--brand-primary);
+            margin: 0 2px;
+            animation: typing 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        /* === MODAL / POPUP === */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3);
+            animation: slideUp 0.3s;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .modal-close:hover {
+            background: var(--bg-surface);
+            color: var(--text-main);
+        }
+
+        .modal-body {
+            margin-bottom: 16px;
+        }
+
+        .modal-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .modal-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+
+        #promptInput {
+            width: 100%;
+            min-height: 80px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tab Navigation -->
+    <div class="app-header">
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('analyze', this)">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                Analyse
+            </button>
+            <button class="tab-btn" onclick="switchTab('reply', this)">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                Antwort
+            </button>
+            <button class="tab-btn" onclick="switchTab('erp', this)">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                PrintPlus
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <!-- TAB 1: ANALYZE -->
+        <div id="analyze" class="tab-content active">
+            <!-- AI Summary Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="icon-box">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        KI-Zusammenfassung
+                    </div>
+                </div>
+                <div class="ai-summary">
+                    <strong>Kundin:</strong> Frau Monika Steiner, BAUHAUS Gruppe<br><br>
+                    
+                    <strong>Wichtige Änderungen erkannt:</strong><br>
+                    1. Ursprüngliche Auflage 45.000 wird auf <strong>50.000 Exemplare erhöht</strong> (+11%).
+                    <br><br>
+                    2. Statt Lieferung ins Zentrallager wird nun ein <strong>Split-Versand an 3 Standorte</strong> gewünscht.
+                </div>
+            </div>
+
+            <!-- ERP Match Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="icon-box">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                        </div>
+                        PrintPlus Abgleich
+                    </div>
+                    <span class="badge badge-erp">Job #2024-899</span>
+                </div>
+                
+                <!-- Data Comparison Table -->
+                <div style="background: #f8fafc; border-radius: 6px; padding: 8px;">
+                    <div class="data-row">
+                        <span class="data-label">Status</span>
+                        <span class="data-value badge-success" style="background:transparent; color:#166534">In Druckvorstufe</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Auflage</span>
+                        <div style="text-align:right">
+                            <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">45.000</span>
+                            <span class="data-value" style="color:#ef4444">50.000</span>
+                        </div>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Versand</span>
+                        <div style="text-align:right">
+                            <span style="text-decoration: line-through; color: #94a3b8; font-size: 11px;">Zentral</span>
+                            <span class="data-value">Split (3)</span>
+                        </div>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Preisabweichung</span>
+                        <span class="data-value diff-up">~ +850,00 €</span>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="alert('Kalkulation wird geöffnet...')">Kalkulation prüfen</button>
+                    <button class="btn btn-primary" onclick="simulateSync()">
+                        <span id="syncText">In PrintPlus aktualisieren</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Logistics Intelligence -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="icon-box">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        Logistik-Extraktion
+                    </div>
+                </div>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+                    Verteilerliste aus E-Mail Anhang (Excel) erkannt:
+                </p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <span class="badge" style="border: 1px solid var(--border); background:white;">Wien Nord (15k)</span>
+                    <span class="badge" style="border: 1px solid var(--border); background:white;">Graz Center (20k)</span>
+                    <span class="badge" style="border: 1px solid var(--border); background:white;">Salzburg (15k)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: REPLY / ANTWORT -->
+        <div id="reply" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">E-Mail Entwurf</div>
+                    <button class="badge badge-erp" style="border:none; cursor:pointer;" onclick="regenerateDraft()">Neu generieren</button>
+                </div>
+                
+                <textarea id="emailDraft" class="modern-input">Sehr geehrte Frau Steiner,
+
+vielen Dank für die Information zur Auftragsänderung (Job #2024-899 "Sommer-Flyer").
+
+Wir haben die Änderungen wie folgt erfasst:
+1. Erhöhung der Auflage auf 50.000 Exemplare.
+2. Änderung der Logistik auf Split-Versand gemäß Ihrer Excel-Liste (Wien, Graz, Salzburg).
+3. Übernahme der neuen Druckdaten via WeTransfer.
+
+Durch die Auflagenänderung und den Split-Versand ergibt sich eine Preisdifferenz von ca. 850,00 €. Die detaillierte Nachtrags-Kalkulation erhalten Sie im Anhang.
+
+Bitte bestätigen Sie diesen Nachtrag kurz, damit wir den Drucktermin halten können.
+
+Mit freundlichen Grüßen
+Ferdinand Berger</textarea>
+                
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="openPromptModal()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Mit Prompt bearbeiten
+                    </button>
+                    <button class="btn btn-primary" onclick="alert('In Outlook eingefügt!')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                        In E-Mail einfügen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Context Info -->
+            <div style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 10px;">
+                KI berücksichtigt: <span style="text-decoration: underline;">PrintPlus Daten</span>, <span style="text-decoration: underline;">E-Mail Historie</span>
+            </div>
+        </div>
+
+        <!-- TAB 3: ERP / PRINTPLUS CHAT -->
+        <div id="erp" class="tab-content">
+            <div class="chat-container" id="chatMessages">
+                <div class="chat-bubble chat-ai">
+                    Ich bin mit Ihrer PrintPlus-Datenbank verbunden. Was möchten Sie wissen?
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <textarea id="chatInput" class="modern-input" rows="1" placeholder="Frage an PrintPlus stellen..." onkeypress="handleEnter(event)"></textarea>
+                <button class="btn btn-primary send-btn" onclick="sendMessage()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROMPT EDITOR MODAL -->
+    <div class="modal-overlay" id="promptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">E-Mail mit Prompt anpassen</div>
+                <button class="modal-close" onclick="closePromptModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <label class="modal-label">Was möchten Sie ändern?</label>
+                <p class="modal-hint">Beispiele: "kürzer", "formeller", "persönlicher"</p>
+                <textarea id="promptInput" class="modern-input" placeholder="z.B. 'kürzer und direkter formulieren'"></textarea>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="closePromptModal()">Abbrechen</button>
+                <button class="btn btn-primary" onclick="applyPrompt()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Anwenden
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Office.js initialization
+        Office.initialize = function (reason) {
+            console.log("Berger Assistent Office.js initialized");
+        };
+
+        // Tab switching
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            btnElement.classList.add('active');
+        }
+
+        // Sync simulation
+        function simulateSync() {
+            const btn = document.getElementById('syncText');
+            const parentBtn = btn.parentElement;
+            
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Synchronisiere...';
+            parentBtn.disabled = true;
+            parentBtn.style.opacity = "0.7";
+
+            setTimeout(() => {
+                btn.innerHTML = 'Erfolgreich gespeichert!';
+                parentBtn.style.backgroundColor = '#166534';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    parentBtn.disabled = false;
+                    parentBtn.style.opacity = "1";
+                    parentBtn.style.backgroundColor = '';
+                    alert("Daten an PrintPlus übertragen:\n- Auflage: 50.000\n- Status: Neu Kalkulieren\n- Versand: Split-Liste importiert");
+                }, 1500);
+            }, 1000);
+        }
+
+        // Regenerate draft animation
+        function regenerateDraft() {
+            const textArea = document.getElementById('emailDraft');
+            textArea.style.opacity = '0.5';
+            setTimeout(() => {
+                textArea.style.opacity = '1';
+                alert('Entwurf neu generiert basierend auf aktuellen PrintPlus-Daten');
+            }, 500);
+        }
+
+        // === PROMPT MODAL LOGIC ===
+        function openPromptModal() {
+            document.getElementById('promptModal').classList.add('active');
+            document.getElementById('promptInput').value = '';
+            document.getElementById('promptInput').focus();
+        }
+
+        function closePromptModal() {
+            document.getElementById('promptModal').classList.remove('active');
+        }
+
+        function applyPrompt() {
+            const promptInput = document.getElementById('promptInput').value.trim();
+            const emailDraft = document.getElementById('emailDraft');
+            
+            if (!promptInput) {
+                alert('Bitte geben Sie eine Anweisung ein.');
+                return;
+            }
+
+            // Close modal
+            closePromptModal();
+            
+            // Show loading state
+            emailDraft.style.opacity = '0.5';
+            emailDraft.disabled = true;
+
+            // Simulate AI processing (1.5s delay)
+            setTimeout(() => {
+                // DEMO: Always return shorter version regardless of input
+                emailDraft.value = `Sehr geehrte Frau Steiner,
+
+vielen Dank für Ihre Änderungsmitteilung zu Job #2024-899.
+
+Änderungen erfasst:
+• Auflage: 50.000 Stk. (statt 45.000)
+• Split-Versand: Wien, Graz, Salzburg
+• Neue Druckdaten via WeTransfer
+
+Preisdifferenz: +850,00 € (siehe Anhang).
+
+Bitte bestätigen Sie den Nachtrag für termingerechte Lieferung.
+
+Mit freundlichen Grüßen
+Ferdinand Berger`;
+
+                emailDraft.style.opacity = '1';
+                emailDraft.disabled = false;
+                
+                // Show success notification
+                const notification = document.createElement('div');
+                notification.textContent = '✓ E-Mail angepasst';
+                notification.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #166534;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    animation: fadeIn 0.3s;
+                    z-index: 2000;
+                `;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'fadeOut 0.3s';
+                    setTimeout(() => notification.remove(), 300);
+                }, 2000);
+            }, 1500);
+        }
+
+        // === CHATBOT LOGIC ===
+        let messageCount = 0;
+        
+        const demoResponses = [
+            {
+                userQuestion: "Wann haben wir den Auftrag #2024-899 ursprünglich erhalten?",
+                aiResponse: `Moment, ich prüfe die Auftragsdatenbank...<br><br>
+<strong>Auftrag #2024-899 "Sommer-Flyer"</strong><br>
+📅 <strong>Erstellt am:</strong> 15. Oktober 2024<br>
+📧 <strong>Erste E-Mail:</strong> Frau Steiner, 14:32 Uhr<br>
+👤 <strong>Angenommen von:</strong> Herr Müller (Vertrieb)<br><br>
+<strong>Ursprüngliche Parameter:</strong><br>
+• Auflage: 45.000 Exemplare<br>
+• Format: A4 Flyer, 4/4 farbig<br>
+• Lieferung: Zentral (Wien)<br>
+• Liefertermin: 28. November 2024`
+            },
+            {
+                userQuestion: "Hat Frau Steiner schon früher Split-Versand angefordert?",
+                aiResponse: `Ich durchsuche die E-Mail-Historie von Frau Steiner...<br><br>
+📊 <strong>Ergebnis:</strong><br>
+✅ Ja, in 3 von 12 Aufträgen (2024):<br><br>
+<strong>1. Job #2024-633</strong> (März '24)<br>
+   Split an 2 Standorte (Wien, Linz)<br><br>
+<strong>2. Job #2024-771</strong> (Juli '24)<br>
+   Split an 4 Standorte<br><br>
+<strong>3. Job #2024-899</strong> (Aktuell)<br>
+   Split an 3 Standorte<br><br>
+💡 <strong>Muster:</strong> Bei größeren Auflagen bevorzugt BAUHAUS regionale Verteilung.`
+            },
+            {
+                userQuestion: "Wie viele Aufträge hat BAUHAUS dieses Jahr bei uns?",
+                aiResponse: `Ich analysiere die Kundendaten für BAUHAUS Gruppe...<br><br>
+📈 <strong>Auftragsstatistik 2024:</strong><br><br>
+<strong>Gesamt:</strong> 12 Aufträge<br>
+<strong>Volumen:</strong> €127.400 (netto)<br>
+<strong>Durchschnitt:</strong> €10.616 pro Auftrag<br><br>
+<strong>Top 3 Aufträge:</strong><br>
+1. #2024-771 - Katalog (€28.900)<br>
+2. #2024-899 - Sommer-Flyer (€18.500)<br>
+3. #2024-633 - Broschüre (€15.200)<br><br>
+✅ BAUHAUS ist unter unseren Top 5 Kunden 2024.`
+            }
+        ];
+
+        function handleEnter(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const chatContainer = document.getElementById('chatMessages');
+            const userText = input.value.trim();
+
+            if (!userText) return;
+            if (messageCount >= 3) {
+                alert('Demo-Limit erreicht. In der Vollversion unbegrenzte Fragen möglich.');
+                return;
+            }
+
+            // Add user message
+            const userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble chat-user';
+            userBubble.textContent = demoResponses[messageCount].userQuestion;
+            chatContainer.appendChild(userBubble);
+
+            // Clear input
+            input.value = '';
+
+            // Scroll to bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Show typing indicator
+            const typingBubble = document.createElement('div');
+            typingBubble.className = 'chat-bubble chat-ai';
+            typingBubble.id = 'typing-indicator';
+            typingBubble.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            chatContainer.appendChild(typingBubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Simulate AI response delay
+            setTimeout(() => {
+                // Remove typing indicator
+                const typingEl = document.getElementById('typing-indicator');
+                if (typingEl) typingEl.remove();
+
+                // Add AI response
+                const aiBubble = document.createElement('div');
+                aiBubble.className = 'chat-bubble chat-ai';
+                aiBubble.innerHTML = demoResponses[messageCount].aiResponse;
+                chatContainer.appendChild(aiBubble);
+
+                messageCount++;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 1500);
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePromptModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Berger Assistent v1.0 geladen");
+        });
+    </script>
+</body>
+</html>
