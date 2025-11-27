@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KanzleiPlus - KI-Antwort</title>
+    
+    <!-- Office.js Library - Required for Outlook Add-In -->
+    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js" type="text/javascript"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --accent: #1C3A52; 
+            --accent-hover: #15293B; 
+            --accent-light: rgba(28,58,82,0.1); 
+            --accent-lighter: rgba(28,58,82,0.05);
+            --bg-primary: #FFFFFF; 
+            --bg-secondary: #F8FAFB; 
+            --bg-tertiary: #F3F4F6; 
+            --bg-elevated: #FFFFFF;
+            --text-primary: #111827; 
+            --text-secondary: #6B7280; 
+            --text-tertiary: #9CA3AF;
+            --border: #E5E7EB; 
+            --border-light: #F3F4F6;
+            --success: #10B981; 
+            --success-light: rgba(16,185,129,0.1);
+            --warning: #F59E0B; 
+            --warning-light: rgba(245,158,11,0.1);
+            --error: #EF4444; 
+            --error-light: rgba(239,68,68,0.1);
+            --info: #3B82F6; 
+            --info-light: rgba(59,130,246,0.1);
+            --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1);
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            --shadow-xl: 0 25px 50px -12px rgba(0,0,0,0.25);
+            --transition-fast: all .15s cubic-bezier(.4,0,.2,1);
+            --transition: all .2s cubic-bezier(.4,0,.2,1);
+            --transition-slow: all .3s cubic-bezier(.4,0,.2,1);
+            --control-h: 52px;
+        }
+
+        body { 
+            font-family: -apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',system-ui,sans-serif; 
+            background: var(--bg-primary); 
+            color: var(--text-primary); 
+            line-height: 1.6; 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Tab Navigation Header */
+        .tab-header {
+            height: 44px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: stretch;
+            flex-shrink: 0;
+        }
+
+        .tab-button {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: none;
+            border-right: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-button:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .tab-button.active {
+            background: var(--bg-primary);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .tab-button svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+        }
+
+        /* Content Container */
+        .content-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .empty-tab {
+            flex: 1;
+            background: var(--bg-primary);
+        }
+
+        /* ================================
+           DASHBOARD STYLES
+           ================================ */
+        
+        .dashboard-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background: var(--bg-primary);
+            scrollbar-width: thin;
+            scrollbar-color: #D1D5DB transparent;
+        }
+
+        .dashboard-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .dashboard-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .dashboard-container::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 8px;
+        }
+
+        .dashboard-container::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+
+        .dashboard-section {
+            margin-bottom: 14px;
+        }
+
+        .section-header-dash {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .section-title-dash {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-icon-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .section-icon-btn:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .section-icon-btn svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.5s ease;
+        }
+
+        .summary-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .summary-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .summary-text {
+            flex: 1;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-primary);
+        }
+
+        .summary-arrow {
+            width: 16px;
+            height: 16px;
+            color: var(--text-tertiary);
+            flex-shrink: 0;
+        }
+
+        .quick-replies {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .quick-reply-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: var(--text-primary);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+            width: 100%;
+        }
+
+        .quick-reply-btn:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ================================
+           CHAT STYLES
+           ================================ */
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        .chat-messages-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex: 1;
+            height: 100%;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            position: relative;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 12px;
+            max-width: 85%;
+            min-width: 0;
+        }
+
+        .chat-message.ai {
+            align-self: flex-start;
+        }
+
+        .chat-message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .message-avatar img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+        }
+
+        .chat-message.user .message-avatar {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-light);
+        }
+
+        .chat-message.ai .message-avatar {
+            background: transparent;
+            border: none;
+        }
+
+        .message-bubble {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            word-break: break-word;
+            overflow-wrap: break-word;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .chat-message.user .message-bubble {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* ================================
+           NEW CHAT INPUT STYLES (ChatGPT-Style)
+           ================================ */
+
+        .chat-input-area {
+            padding: 10px 12px 12px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-light);
+        }
+
+        .chat-input-wrapper {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chat-input-wrapper:focus-within {
+            border-color: var(--accent);
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        .chat-input-main-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-height: 32px;
+        }
+
+        /* Tools Button & Popup */
+        .chat-tools-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .chat-tools-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .chat-tools-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .chat-tools-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .chat-tools-popup {
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 0;
+            min-width: 180px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: var(--shadow-lg);
+            padding: 6px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(4px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .chat-tools-popup.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+
+        .tools-popup-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 8px 10px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .tools-popup-item:hover {
+            background: var(--bg-secondary);
+        }
+
+        .tools-popup-item svg,
+        .tools-popup-item img {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+        }
+
+        .tools-popup-divider {
+            height: 1px;
+            background: var(--border-light);
+            margin: 6px 0;
+        }
+
+        .tools-popup-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            padding: 6px 10px 3px;
+        }
+
+        .chat-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 18px;
+            color: var(--text-primary);
+            background: transparent;
+            padding: 5px 0;
+            min-height: 18px;
+            max-height: 100px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .chat-input::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .chat-input::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .chat-send-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .chat-send-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .chat-send-btn:hover {
+            background: var(--accent-hover);
+            transform: scale(1.05);
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .taskpane-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        /* Main Content Area */
+        .taskpane-content {
+            flex: 1;
+            overflow: hidden;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+
+        /* Response Section */
+        .response-section {
+            background: transparent;
+            border-radius: 0;
+            border: none;
+            padding: 0;
+            margin-bottom: 0;
+            box-shadow: none;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Response Text Container mit versteckter nativer Scrollbar */
+        .response-text-wrapper {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+        }
+
+        .regenerate-btn {
+            padding: 5px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .regenerate-btn svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .regenerate-btn:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .response-text {
+            width: 100%;
+            height: 100%;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 10px;
+            padding-right: 10px;
+            background: var(--bg-secondary);
+            resize: none;
+            transition: var(--transition);
+            overflow-y: scroll;
+            overflow-x: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .response-text::-webkit-scrollbar {
+            display: none;
+        }
+
+        .response-text:focus {
+            outline: none;
+            border-color: var(--border);
+            background: var(--bg-secondary);
+            box-shadow: none;
+        }
+
+        .response-text:hover {
+            border-color: var(--border);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar {
+            position: absolute;
+            right: 1px;
+            top: 0;
+            bottom: 0;
+            width: 10px;
+            background: transparent;
+            border-radius: 12px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .custom-scrollbar.visible {
+            opacity: 1;
+        }
+
+        .custom-scrollbar-thumb {
+            position: absolute;
+            right: 0;
+            width: 6px;
+            background: #D1D5DB;
+            border-radius: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: background 0.2s ease, width 0.2s ease;
+        }
+
+        .custom-scrollbar-thumb:hover {
+            background: #9CA3AF;
+            width: 8px;
+        }
+
+        .custom-scrollbar-thumb:active {
+            background: #9CA3AF;
+            width: 8px;
+        }
+
+        /* Sources Section - Collapsible */
+        .sources-wrapper {
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-light);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .sources-section {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-light);
+            transition: var(--transition);
+        }
+
+        .sources-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--bg-primary);
+            transition: var(--transition);
+        }
+
+        .sources-toggle:hover {
+            background: var(--bg-secondary);
+        }
+
+        .sources-toggle:active {
+            background: var(--bg-tertiary);
+        }
+
+        .sources-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sources-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sources-title svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .sources-count {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+
+        .sources-chevron {
+            width: 16px;
+            height: 16px;
+            color: var(--text-tertiary);
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .sources-section.expanded .sources-chevron {
+            transform: rotate(180deg);
+        }
+
+        .sources-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sources-section.expanded .sources-content {
+            max-height: 400px;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 6px 12px 12px;
+        }
+
+        .source-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .source-card:hover {
+            background: var(--accent-lighter);
+            border-color: var(--accent-light);
+        }
+
+        .source-icon {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            background: var(--info-light);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--info);
+        }
+
+        .source-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .source-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .source-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .source-meta {
+            font-size: 10px;
+            color: var(--text-tertiary);
+        }
+
+        /* Footer Actions */
+        .taskpane-footer {
+            padding: 12px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+
+        .btn-primary {
+            width: 100%;
+            height: 42px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            box-shadow: var(--shadow);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .secondary-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            height: 38px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-secondary svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Popup/Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .overlay.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .popup {
+            background: var(--bg-primary);
+            border-radius: 14px;
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 420px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .popup-header {
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .popup-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .popup-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .popup-close:hover {
+            background: var(--error-light);
+            color: var(--error);
+            border-color: var(--error);
+        }
+
+        .popup-content {
+            padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+
+        .popup-textarea-wrapper {
+            position: relative;
+            height: 160px;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            padding-right: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            resize: none;
+            transition: var(--transition);
+            overflow-y: scroll;
+            overflow-x: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .form-input::-webkit-scrollbar {
+            display: none;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .form-input:hover {
+            border-color: var(--border);
+        }
+
+        .form-hint {
+            font-size: 10px;
+            color: var(--text-tertiary);
+            margin-top: 5px;
+        }
+
+        .popup-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            flex: 1;
+            height: 38px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--text-tertiary);
+        }
+
+        .btn-generate {
+            flex: 2;
+            height: 38px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-generate:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-generate:active {
+            transform: translateY(0);
+        }
+
+        /* Loading State */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        /* ================================
+           MANDANTEN FOOTER (Fixed Bottom)
+           ================================ */
+        
+        .mandant-footer {
+            padding: 8px 12px 10px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+
+        .mandant-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+        }
+
+        .mandant-card:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .mandant-avatar {
+            width: 26px;
+            height: 26px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .mandant-name {
+            flex: 1;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mandant-action {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border-light);
+            border-radius: 5px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .mandant-action:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* ================================
+           DOKUMENTE SECTION (Collapsible)
+           ================================ */
+        
+        .documents-section {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            transition: var(--transition);
+            overflow: hidden;
+        }
+
+        .documents-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--bg-secondary);
+            transition: var(--transition);
+        }
+
+        .documents-toggle:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .documents-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .documents-icon {
+            width: 16px;
+            height: 16px;
+            color: var(--accent);
+        }
+
+        .documents-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .documents-chevron {
+            width: 16px;
+            height: 16px;
+            color: var(--text-tertiary);
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .documents-section.expanded .documents-chevron {
+            transform: rotate(180deg);
+        }
+
+        .documents-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .documents-section.expanded .documents-content {
+            max-height: 500px;
+        }
+
+        .documents-inner {
+            padding: 10px;
+            background: var(--bg-tertiary);
+        }
+
+        /* Bulk Actions */
+        .documents-bulk-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .bulk-select-all {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .bulk-select-all input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .btn-bulk-upload {
+            padding: 5px 10px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-bulk-upload:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-bulk-upload:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-bulk-upload svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Document List */
+        .documents-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .document-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .document-item:hover {
+            border-color: var(--border);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .document-item.uploaded {
+            background: var(--success-light);
+            border-color: var(--success);
+        }
+
+        .document-item.uploaded .document-info .document-name {
+            color: var(--success);
+        }
+
+        .document-checkbox {
+            width: 14px;
+            height: 14px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .document-checkbox:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .document-icon-wrapper {
+            width: 28px;
+            height: 28px;
+            background: var(--info-light);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--info);
+            flex-shrink: 0;
+        }
+
+        .document-icon-wrapper svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .document-item.uploaded .document-icon-wrapper {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .document-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .document-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Folder Selector (Right Side - Icon Only) */
+        .document-folder-btn {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-light);
+            border-radius: 5px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .document-folder-btn:hover {
+            background: var(--accent-light);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .document-folder-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .document-folder-btn:disabled:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-light);
+            color: var(--text-secondary);
+        }
+
+        .document-folder-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .uploaded-badge {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 8px;
+            background: var(--success);
+            color: white;
+            border-radius: 5px;
+            font-size: 10px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .uploaded-badge svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Folder Selection Popup */
+        .folder-popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .folder-popup-overlay.active {
+            display: flex;
+        }
+
+        .folder-popup {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 320px;
+            max-height: 400px;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.2s ease;
+        }
+
+        .folder-popup-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .folder-popup-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .folder-popup-close {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .folder-popup-close:hover {
+            background: var(--error-light);
+            color: var(--error);
+        }
+
+        .folder-popup-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .folder-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .folder-option:hover {
+            background: var(--bg-secondary);
+        }
+
+        .folder-option.selected {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .folder-option svg {
+            width: 18px;
+            height: 18px;
+            color: var(--text-tertiary);
+        }
+
+        .folder-option.selected svg {
+            color: var(--accent);
+        }
+
+        /* Upload Progress Animation */
+        @keyframes uploadPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .uploading {
+            animation: uploadPulse 1s ease-in-out infinite;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--accent-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: var(--accent);
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .empty-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tab Navigation Header -->
+    <div class="tab-header">
+        <button class="tab-button active" onclick="switchTab('dashboard')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+        </button>
+        <button class="tab-button" onclick="switchTab('email')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+        </button>
+        <button class="tab-button" onclick="switchTab('steuer')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="content-container">
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboardTab">
+            <div class="dashboard-container">
+                <!-- Zusammenfassung Section -->
+                <div class="dashboard-section">
+                    <div class="section-header-dash">
+                        <h2 class="section-title-dash">Zusammenfassung</h2>
+                        <button class="section-icon-btn" onclick="copySummary()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="summary-card" onclick="expandSummary()">
+                        <div class="summary-text" id="summaryText">
+                            Die eingehende E-Mail betrifft eine Anfrage zur Umsatzsteuervoranmeldung Q3 2025. Der Mandant benötigt Klärung zur steuerlichen Behandlung von Softwarelizenzen und Cloud-Services nach § 13b UStG.
+                        </div>
+                        <svg class="summary-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Schnellantwort Section -->
+                <div class="dashboard-section">
+                    <div class="section-header-dash">
+                        <h2 class="section-title-dash">Schnellantwort</h2>
+                        <button class="section-icon-btn" onclick="refreshQuickReplies()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="quick-replies">
+                        <button class="quick-reply-btn" onclick="useQuickReply(this)">Ich habe die Anfrage nicht autorisiert</button>
+                        <button class="quick-reply-btn" onclick="useQuickReply(this)">Ich werde die App-Berechtigungen verwalten</button>
+                        <button class="quick-reply-btn" onclick="useQuickReply(this)">Ich benötige weitere Informationen zur steuerlichen Behandlung</button>
+                    </div>
+                </div>
+
+                <!-- Anhänge Section -->
+                <div class="dashboard-section">
+                    <div class="section-header-dash">
+                        <h2 class="section-title-dash">Anhänge</h2>
+                    </div>
+                    <div class="documents-section" id="documentsSection">
+                        <div class="documents-toggle" onclick="toggleDocuments()">
+                            <div class="documents-header">
+                                <svg class="documents-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="documents-title">Dokumente (<span id="documentsCount">4</span>)</span>
+                            </div>
+                            <svg class="documents-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                        <div class="documents-content">
+                            <div class="documents-inner">
+                                <!-- Bulk Actions -->
+                                <div class="documents-bulk-actions">
+                                    <label class="bulk-select-all">
+                                        <input type="checkbox" id="selectAllDocs" onchange="toggleSelectAllDocs(this)">
+                                        <span>Alle</span>
+                                    </label>
+                                    <button class="btn-bulk-upload" id="btnBulkUpload" onclick="uploadSelectedDocs()" disabled>
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                        </svg>
+                                        DATEV DMS
+                                    </button>
+                                </div>
+
+                                <!-- Document List -->
+                                <div class="documents-list" id="documentsList">
+                                    <!-- Dokument 1 -->
+                                    <div class="document-item" id="doc-1" data-folder="Eingangsrechnungen/2025">
+                                        <input type="checkbox" class="document-checkbox" data-doc-id="1" onchange="updateBulkState()">
+                                        <div class="document-icon-wrapper">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="document-info">
+                                            <div class="document-name">Rechnung_Microsoft_365_Q3.pdf</div>
+                                        </div>
+                                        <button class="document-folder-btn" onclick="openFolderSelector('1')" data-doc-id="1" title="Eingangsrechnungen/2025">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Dokument 2 -->
+                                    <div class="document-item" id="doc-2" data-folder="Eingangsrechnungen/2025">
+                                        <input type="checkbox" class="document-checkbox" data-doc-id="2" onchange="updateBulkState()">
+                                        <div class="document-icon-wrapper">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="document-info">
+                                            <div class="document-name">Adobe_CC_Jahresabo_2025.pdf</div>
+                                        </div>
+                                        <button class="document-folder-btn" onclick="openFolderSelector('2')" data-doc-id="2" title="Eingangsrechnungen/2025">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Dokument 3 -->
+                                    <div class="document-item" id="doc-3" data-folder="Verträge/Cloud-Services">
+                                        <input type="checkbox" class="document-checkbox" data-doc-id="3" onchange="updateBulkState()">
+                                        <div class="document-icon-wrapper">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="document-info">
+                                            <div class="document-name">AWS_Servicevertrag_2025.pdf</div>
+                                        </div>
+                                        <button class="document-folder-btn" onclick="openFolderSelector('3')" data-doc-id="3" title="Verträge/Cloud-Services">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Dokument 4 -->
+                                    <div class="document-item" id="doc-4" data-folder="Korrespondenz/2025">
+                                        <input type="checkbox" class="document-checkbox" data-doc-id="4" onchange="updateBulkState()">
+                                        <div class="document-icon-wrapper">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                            </svg>
+                                        </div>
+                                        <div class="document-info">
+                                            <div class="document-name">Anfrage_USt_Behandlung.eml</div>
+                                        </div>
+                                        <button class="document-folder-btn" onclick="openFolderSelector('4')" data-doc-id="4" title="Korrespondenz/2025">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mandant Footer (Fixed) -->
+            <div class="mandant-footer">
+                <div class="mandant-card">
+                    <div class="mandant-avatar">MB</div>
+                    <div class="mandant-name">Müller GmbH</div>
+                    <button class="mandant-action" onclick="openMandantDetails()" title="Mandant öffnen">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- E-Mail-Entwurf Tab -->
+        <div class="tab-content" id="emailTab">
+            <div class="taskpane-container">
+        <!-- Main Content -->
+        <div class="taskpane-content" id="mainContent">
+            <!-- Response Section -->
+            <div class="response-section">
+                <div class="response-text-wrapper">
+                    <textarea class="response-text" id="responseText">Sehr geehrte Frau Becker,
+
+vielen Dank für Ihre E-Mail zur Umsatzsteuervoranmeldung Q3 2025. Gerne helfe ich Ihnen bei der Behandlung Ihrer Softwarelizenzen:
+
+1. Microsoft Office 365 (monatlich):
+Als Software-as-a-Service gilt das Reverse-Charge-Verfahren nach § 13b UStG. Sie weisen keine deutsche Umsatzsteuer aus, können aber die Vorsteuer geltend machen. Erfassung in Kennziffer 46 und 66 der UVA.
+
+2. Adobe Entwicklungstools (Jahresabonnement):
+Ähnliche Behandlung wie Office 365. Bei Jahresabonnement erfolgt die ratierliche Erfassung über 12 Monate gemäß § 11 EStG. Dokumentation des Leistungsempfangs erforderlich.
+
+3. AWS Cloud-Services (variabel):
+Ebenfalls Reverse-Charge nach § 13b UStG. Variable Kosten werden monatlich bei Rechnungserhalt erfasst. Wichtig: Alle Rechnungen auf korrekte USt-Behandlung prüfen.
+
+Ich empfehle ein kurzes Telefonat zur Klärung der Details. Gerne heute noch oder morgen vormittag. Dann können wir die UVA rechtzeitig fertigstellen.
+
+Mit freundlichen Grüßen
+Dr. Maria Müller
+Steuerberaterin</textarea>
+                    <div class="custom-scrollbar" id="customScrollbar">
+                        <div class="custom-scrollbar-thumb" id="scrollbarThumb"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sources Section (Collapsible, Fixed at Bottom) -->
+        <div class="sources-wrapper">
+            <div class="sources-section" id="sourcesSection">
+                <div class="sources-toggle" onclick="toggleSources()">
+                    <div class="sources-header">
+                        <div class="sources-title">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Verwendete Quellen (3)
+                        </div>
+                    </div>
+                    <svg class="sources-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+                <div class="sources-content">
+                    <div class="sources-list">
+                        <div class="source-card">
+                            <div class="source-icon">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">§ 13b UStG - Reverse-Charge</div>
+                                <div class="source-meta">Umsatzsteuergesetz · Aktualisiert 2025</div>
+                            </div>
+                        </div>
+                        <div class="source-card">
+                            <div class="source-icon">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">§ 3a Abs. 4 UStG - SaaS-Leistungen</div>
+                                <div class="source-meta">Umsatzsteuergesetz · Aktualisiert 2025</div>
+                            </div>
+                        </div>
+                        <div class="source-card">
+                            <div class="source-icon">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/>
+                                </svg>
+                            </div>
+                            <div class="source-content">
+                                <div class="source-title">Mandantenakte: Müller GmbH</div>
+                                <div class="source-meta">Letzte Korrespondenz · 15.08.2025</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer with Actions -->
+        <div class="taskpane-footer">
+            <div class="secondary-actions" style="margin-top: 0; margin-bottom: 6px;">
+                <button class="btn-secondary" onclick="openPromptPopup()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Anpassen
+                </button>
+            </div>
+            <button class="btn-primary" onclick="insertIntoOutlook()">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+                In Outlook einfügen
+            </button>
+        </div>
+    </div>
+        </div>
+
+        <!-- Steuer-Einsicht Tab (KI-Assistent) -->
+        <div class="tab-content" id="steuerTab">
+            <div class="chat-container">
+                <div class="chat-messages-wrapper">
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Initial AI Message -->
+                        <div class="chat-message ai">
+                            <div class="message-avatar">
+                                <img src="https://i.imgur.com/SAeGvU4.png" alt="Steuer-Einstein">
+                            </div>
+                            <div class="message-bubble">
+                                Hallo! Ich bin Ihr KI-Assistent für steuerliche Fragen. Wie kann ich Ihnen heute helfen?
+                            </div>
+                        </div>
+                    </div>
+                    <div class="custom-scrollbar" id="chatMessagesScrollbar">
+                        <div class="custom-scrollbar-thumb" id="chatMessagesScrollbarThumb"></div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="chat-input-wrapper">
+                        <div class="chat-input-main-row">
+                            <!-- Tools Button mit Popup -->
+                            <div class="chat-tools-wrapper">
+                                <button class="chat-tools-btn" id="chatToolsBtn" onclick="toggleToolsPopup()" title="Tools">
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Tools Popup -->
+                                <div class="chat-tools-popup" id="chatToolsPopup">
+                                    <button class="tools-popup-item" onclick="triggerFileInput(); closeToolsPopup();">
+                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                        </svg>
+                                        <span>Dokument anhängen</span>
+                                    </button>
+                                    <button class="tools-popup-item" onclick="toggleDeepResearch(); closeToolsPopup();">
+                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                        </svg>
+                                        <span>Tiefenrecherche</span>
+                                    </button>
+                                    
+                                    <div class="tools-popup-divider"></div>
+                                    <div class="tools-popup-section-title">Quellen</div>
+                                    
+                                    <button class="tools-popup-item" onclick="toggleSource('steuerrecht'); closeToolsPopup();">
+                                        <svg width="18" height="13" viewBox="0 0 16 12" fill="none">
+                                            <rect x="0" y="0" width="16" height="4" fill="#000000" rx="1"/>
+                                            <rect x="0" y="4" width="16" height="4" fill="#DD0000"/>
+                                            <rect x="0" y="8" width="16" height="4" fill="#FFCE00" rx="1"/>
+                                        </svg>
+                                        <span>Steuerrecht DE</span>
+                                    </button>
+                                    <button class="tools-popup-item" onclick="toggleSource('mandanten'); closeToolsPopup();">
+                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        <span>Mandantenakten</span>
+                                    </button>
+                                    <button class="tools-popup-item" onclick="toggleSource('websearch'); closeToolsPopup();">
+                                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#1ac4de">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/>
+                                        </svg>
+                                        <span>Internetsuche</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Textarea -->
+                            <textarea 
+                                class="chat-input" 
+                                id="chatInput" 
+                                placeholder=""
+                                rows="1"
+                                onkeydown="handleChatKeydown(event)"
+                                oninput="autoResizeChatInput(this)"
+                            ></textarea>
+                            
+                            <!-- Send Button -->
+                            <button class="chat-send-btn" id="chatSendBtn" onclick="sendChatMessage()" title="Senden">
+                                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="fileInput" style="display: none;" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
+
+    <!-- Prompt Popup -->
+    <div class="overlay" id="promptOverlay" onclick="closePopupOnOverlay(event)">
+        <div class="popup" onclick="event.stopPropagation()">
+            <div class="popup-header">
+                <div class="popup-title">Antwort anpassen</div>
+                <button class="popup-close" onclick="closePromptPopup()">×</button>
+            </div>
+            <div class="popup-content">
+                <div class="form-group">
+                    <label class="form-label">Ihr Prompt</label>
+                    <div class="popup-textarea-wrapper">
+                        <textarea 
+                            class="form-input" 
+                            id="promptInput" 
+                            placeholder="Beschreiben Sie, wie die Antwort angepasst werden soll..."
+                        ></textarea>
+                        <div class="custom-scrollbar" id="popupScrollbar">
+                            <div class="custom-scrollbar-thumb" id="popupScrollbarThumb"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="popup-footer">
+                <button class="btn-cancel" onclick="closePromptPopup()">Abbrechen</button>
+                <button class="btn-generate" onclick="generateWithPrompt()" id="generateBtn">
+                    Generieren
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Selection Popup -->
+    <div class="folder-popup-overlay" id="folderPopupOverlay" onclick="closeFolderSelector()">
+        <div class="folder-popup" onclick="event.stopPropagation()">
+            <div class="folder-popup-header">
+                <div class="folder-popup-title">Zielordner wählen</div>
+                <button class="folder-popup-close" onclick="closeFolderSelector()">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="folder-popup-content" id="folderList">
+                <div class="folder-option" data-folder="Eingangsrechnungen/2025" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Eingangsrechnungen/2025
+                </div>
+                <div class="folder-option" data-folder="Ausgangsrechnungen/2025" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Ausgangsrechnungen/2025
+                </div>
+                <div class="folder-option" data-folder="Verträge/Cloud-Services" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Verträge/Cloud-Services
+                </div>
+                <div class="folder-option" data-folder="Verträge/Lizenzen" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Verträge/Lizenzen
+                </div>
+                <div class="folder-option" data-folder="Korrespondenz/2025" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Korrespondenz/2025
+                </div>
+                <div class="folder-option" data-folder="Steuererklärungen/2025" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Steuererklärungen/2025
+                </div>
+                <div class="folder-option" data-folder="Jahresabschluss/2024" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Jahresabschluss/2024
+                </div>
+                <div class="folder-option" data-folder="Sonstiges" onclick="selectFolder(this)">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    Sonstiges
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================
+        // OFFICE.JS INITIALIZATION
+        // ================================
+        
+        // Global Office context
+        let mailboxItem = null;
+        let isOfficeInitialized = false;
+
+        // Office.onReady - Signalisiert Outlook, dass das Add-In bereit ist
+        Office.onReady(function(info) {
+            isOfficeInitialized = true;
+            console.log('✅ Office.js initialized');
+            console.log('Host:', info.host);
+            console.log('Platform:', info.platform);
+            
+            // Check if we're in Outlook
+            if (info.host === Office.HostType.Outlook) {
+                // Get the current mail item
+                mailboxItem = Office.context.mailbox.item;
+                console.log('📧 Mailbox item available:', !!mailboxItem);
+                
+                // Initialize the add-in UI with email data
+                initializeWithEmailData();
+            }
+        });
+
+        // Initialize UI with current email data
+        function initializeWithEmailData() {
+            if (!mailboxItem) {
+                console.log('⚠️ No mailbox item available');
+                return;
+            }
+
+            // Get sender info
+            if (mailboxItem.from) {
+                mailboxItem.from.getAsync(function(result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('📨 From:', result.value.displayName, result.value.emailAddress);
+                        // Could update UI with sender info here
+                    }
+                });
+            }
+
+            // Get subject
+            if (mailboxItem.subject) {
+                mailboxItem.subject.getAsync(function(result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('📋 Subject:', result.value);
+                        // Could update UI with subject here
+                    }
+                });
+            }
+
+            // Get email body
+            if (mailboxItem.body) {
+                mailboxItem.body.getAsync(Office.CoercionType.Text, function(result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('📝 Body loaded, length:', result.value.length);
+                        // Could process email body here
+                    }
+                });
+            }
+
+            // Get attachments
+            if (mailboxItem.attachments) {
+                console.log('📎 Attachments:', mailboxItem.attachments.length);
+                // Could update documents section with real attachments
+            }
+        }
+
+        // Insert text into Outlook email body
+        function insertTextIntoOutlook(text) {
+            if (!isOfficeInitialized || !mailboxItem) {
+                console.log('⚠️ Office not initialized or no mailbox item');
+                alert('Outlook-Verbindung nicht verfügbar. Bitte öffnen Sie das Add-In aus einer E-Mail heraus.');
+                return false;
+            }
+
+            // For compose mode - set the body
+            if (mailboxItem.body && mailboxItem.body.setAsync) {
+                mailboxItem.body.setAsync(
+                    text,
+                    { coercionType: Office.CoercionType.Text },
+                    function(result) {
+                        if (result.status === Office.AsyncResultStatus.Succeeded) {
+                            console.log('✅ Text inserted into email body');
+                        } else {
+                            console.error('❌ Failed to insert text:', result.error.message);
+                        }
+                    }
+                );
+                return true;
+            }
+            
+            return false;
+        }
+
+        // ================================
+        // CUSTOM SCROLLBAR IMPLEMENTATION
+        // ================================
+        
+        function createCustomScrollbar(textareaId, scrollbarId, thumbId) {
+            const textarea = document.getElementById(textareaId);
+            const scrollbar = document.getElementById(scrollbarId);
+            const thumb = document.getElementById(thumbId);
+            
+            if (!textarea || !scrollbar || !thumb) return;
+            
+            let isDragging = false;
+            let startY = 0;
+            let startScrollTop = 0;
+
+            function updateScrollbar() {
+                const scrollHeight = textarea.scrollHeight;
+                const clientHeight = textarea.clientHeight;
+                const scrollTop = textarea.scrollTop;
+
+                // Scrollbar nur anzeigen wenn Content scrollbar ist
+                if (scrollHeight > clientHeight + 1) { // +1 für Rundungsfehler
+                    scrollbar.classList.add('visible');
+                    
+                    // Thumb-Höhe berechnen (proportional zum sichtbaren Bereich)
+                    const thumbHeight = Math.max(
+                        (clientHeight / scrollHeight) * clientHeight * 0.9,
+                        40 // Mindesthöhe 40px
+                    );
+                    
+                    // Thumb-Position berechnen - mit 4px Abstand oben/unten für sanfte Rundung
+                    const topMargin = 4;
+                    const bottomMargin = 4;
+                    const scrollableHeight = clientHeight - thumbHeight - topMargin - bottomMargin;
+                    const scrollPercentage = scrollTop / (scrollHeight - clientHeight);
+                    const thumbTop = topMargin + (scrollPercentage * scrollableHeight);
+                    
+                    thumb.style.height = thumbHeight + 'px';
+                    thumb.style.top = thumbTop + 'px';
+                } else {
+                    scrollbar.classList.remove('visible');
+                    // Scrollposition zurücksetzen wenn nicht mehr scrollbar
+                    if (textarea.scrollTop > 0) {
+                        textarea.scrollTop = 0;
+                    }
+                }
+            }
+
+            // Textarea Scroll Event
+            textarea.addEventListener('scroll', updateScrollbar);
+
+            // Drag-Funktionalität für Scrollbar
+            thumb.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startY = e.clientY;
+                startScrollTop = textarea.scrollTop;
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const deltaY = e.clientY - startY;
+                const scrollHeight = textarea.scrollHeight;
+                const clientHeight = textarea.clientHeight;
+                const thumbHeight = parseFloat(thumb.style.height);
+                const topMargin = 4;
+                const bottomMargin = 4;
+                const scrollableHeight = clientHeight - thumbHeight - topMargin - bottomMargin;
+                
+                const scrollDelta = (deltaY / scrollableHeight) * (scrollHeight - clientHeight);
+                textarea.scrollTop = startScrollTop + scrollDelta;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    document.body.style.userSelect = '';
+                }
+            });
+
+            // Klick auf Scrollbar-Track
+            scrollbar.addEventListener('click', (e) => {
+                if (e.target === scrollbar) {
+                    const rect = scrollbar.getBoundingClientRect();
+                    const clickY = e.clientY - rect.top;
+                    const thumbHeight = parseFloat(thumb.style.height);
+                    const topMargin = 4;
+                    const bottomMargin = 4;
+                    const scrollableHeight = rect.height - thumbHeight - topMargin - bottomMargin;
+                    const scrollPercentage = (clickY - thumbHeight / 2 - topMargin) / scrollableHeight;
+                    
+                    const scrollHeight = textarea.scrollHeight;
+                    const clientHeight = textarea.clientHeight;
+                    textarea.scrollTop = scrollPercentage * (scrollHeight - clientHeight);
+                }
+            });
+
+            // Initial update
+            updateScrollbar();
+            
+            // Update bei Resize
+            window.addEventListener('resize', updateScrollbar);
+            
+            // Update bei Content-Änderung (z.B. nach Text-Edit)
+            textarea.addEventListener('input', updateScrollbar);
+            
+            // ResizeObserver für automatische Updates bei Größenänderungen
+            if (typeof ResizeObserver !== 'undefined') {
+                const resizeObserver = new ResizeObserver(() => {
+                    updateScrollbar();
+                });
+                resizeObserver.observe(textarea);
+            }
+            
+            return updateScrollbar;
+        }
+        
+        function initCustomScrollbar() {
+            // Haupt-Textarea Scrollbar
+            const updateMainScrollbar = createCustomScrollbar('responseText', 'customScrollbar', 'scrollbarThumb');
+            
+            // Scrollbar als globale Funktion verfügbar machen für toggleSources
+            if (updateMainScrollbar) {
+                window.updateScrollbarGlobal = updateMainScrollbar;
+            }
+        }
+        
+        function initPopupScrollbar() {
+            // Popup-Textarea Scrollbar
+            createCustomScrollbar('promptInput', 'popupScrollbar', 'popupScrollbarThumb');
+        }
+
+        // ================================
+        // TOOLS POPUP FUNCTIONS
+        // ================================
+        
+        function toggleToolsPopup() {
+            const popup = document.getElementById('chatToolsPopup');
+            popup.classList.toggle('active');
+        }
+
+        function closeToolsPopup() {
+            const popup = document.getElementById('chatToolsPopup');
+            popup.classList.remove('active');
+        }
+
+        function triggerFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function toggleDeepResearch() {
+            console.log('Tiefenrecherche aktiviert');
+            // Hier würde die Tiefenrecherche-Funktion implementiert
+        }
+
+        function toggleSource(source) {
+            console.log('Quelle umgeschaltet:', source);
+            // Hier würde die Quellen-Aktivierung implementiert
+        }
+
+        // Schließe Popup wenn außerhalb geklickt wird
+        document.addEventListener('click', (e) => {
+            const popup = document.getElementById('chatToolsPopup');
+            const btn = document.getElementById('chatToolsBtn');
+            if (popup && !popup.contains(e.target) && !btn.contains(e.target)) {
+                popup.classList.remove('active');
+            }
+        });
+
+        // ================================
+        // POPUP FUNCTIONS
+        // ================================
+        
+        function switchTab(tabName) {
+            // Entferne active class von allen Buttons und Contents
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Aktiviere den entsprechenden Tab
+            if (tabName === 'dashboard') {
+                document.querySelector('.tab-button:nth-child(1)').classList.add('active');
+                document.getElementById('dashboardTab').classList.add('active');
+            } else if (tabName === 'email') {
+                document.querySelector('.tab-button:nth-child(2)').classList.add('active');
+                document.getElementById('emailTab').classList.add('active');
+            } else if (tabName === 'steuer') {
+                document.querySelector('.tab-button:nth-child(3)').classList.add('active');
+                document.getElementById('steuerTab').classList.add('active');
+                
+                // Initialisiere Chat Scrollbars beim ersten Öffnen
+                if (!window.chatScrollbarsInitialized) {
+                    setTimeout(() => {
+                        initChatScrollbars();
+                        window.chatScrollbarsInitialized = true;
+                    }, 50);
+                }
+            }
+        }
+        
+        function toggleSources() {
+            const sourcesSection = document.getElementById('sourcesSection');
+            sourcesSection.classList.toggle('expanded');
+            
+            // Scrollbar nach Transition neu berechnen
+            setTimeout(() => {
+                if (window.updateScrollbarGlobal) {
+                    window.updateScrollbarGlobal();
+                }
+            }, 350); // Warten bis CSS-Transition (300ms) abgeschlossen ist
+        }
+
+        function openPromptPopup() {
+            document.getElementById('promptOverlay').classList.add('active');
+            document.getElementById('promptInput').focus();
+            
+            // Initialisiere Scrollbar beim ersten Öffnen
+            if (!window.popupScrollbarInitialized) {
+                setTimeout(() => {
+                    initPopupScrollbar();
+                    window.popupScrollbarInitialized = true;
+                }, 50);
+            }
+        }
+
+        function closePromptPopup() {
+            document.getElementById('promptOverlay').classList.remove('active');
+            document.getElementById('promptInput').value = '';
+        }
+
+        function closePopupOnOverlay(event) {
+            if (event.target === event.currentTarget) {
+                closePromptPopup();
+            }
+        }
+
+        function generateWithPrompt() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            
+            if (!prompt) {
+                alert('Bitte geben Sie einen Prompt ein.');
+                return;
+            }
+
+            const generateBtn = document.getElementById('generateBtn');
+            const originalContent = generateBtn.innerHTML;
+            
+            // Loading state
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading-spinner"></span> Wird generiert...';
+
+            // Simulate generation (in real app, this would be an API call)
+            setTimeout(() => {
+                // Update response with new content
+                document.getElementById('responseText').value = `Sehr geehrte Frau Becker,
+
+herzlichen Dank für Ihre Anfrage zur Umsatzsteuervoranmeldung Q3 2025.
+
+Basierend auf Ihren Angaben habe ich eine detaillierte Analyse der steuerlichen Behandlung Ihrer Softwarelizenzen vorgenommen:
+
+[Hier würde die mit Ihrem individuellen Prompt generierte Antwort erscheinen...]
+
+Die vollständige Antwort berücksichtigt alle von Ihnen genannten Punkte und wurde nach Ihren spezifischen Vorgaben erstellt.
+
+Mit freundlichen Grüßen
+Dr. Maria Müller
+Steuerberaterin`;
+
+                // Update scrollbar nach Content-Änderung
+                const textarea = document.getElementById('responseText');
+                const event = new Event('input', { bubbles: true });
+                textarea.dispatchEvent(event);
+
+                // Reset button
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = originalContent;
+                
+                // Close popup
+                closePromptPopup();
+                
+                // Show success feedback
+                showSuccessMessage();
+            }, 2000);
+        }
+
+        function showSuccessMessage() {
+            // Success feedback - could show a toast notification here if desired
+            console.log('✅ Neue Antwort erfolgreich generiert');
+        }
+
+        // ================================
+        // ACTION FUNCTIONS
+        // ================================
+        
+        function insertIntoOutlook() {
+            const responseText = document.getElementById('responseText').value;
+            
+            if (!responseText.trim()) {
+                alert('Keine Antwort zum Einfügen vorhanden.');
+                return;
+            }
+
+            // Check if Office.js is available and initialized
+            if (isOfficeInitialized && mailboxItem) {
+                // Use Office.js to insert into email body
+                mailboxItem.body.setAsync(
+                    responseText,
+                    { coercionType: Office.CoercionType.Text },
+                    function(result) {
+                        if (result.status === Office.AsyncResultStatus.Succeeded) {
+                            console.log('✅ Text inserted into Outlook');
+                            showInsertSuccess();
+                        } else {
+                            console.error('❌ Failed to insert:', result.error.message);
+                            alert('Fehler beim Einfügen: ' + result.error.message);
+                        }
+                    }
+                );
+            } else {
+                // Fallback for testing outside Outlook
+                console.log('⚠️ Office.js not available, using fallback');
+                showInsertSuccess();
+                alert('Die Antwort wurde in Outlook eingefügt.\n\n(Demo-Modus: In der echten Add-in-Umgebung würde dies direkt in den E-Mail-Editor übernommen werden)');
+            }
+        }
+
+        function showInsertSuccess() {
+            // Visual feedback on the button
+            const btn = document.querySelector('.btn-primary');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Eingefügt!';
+            btn.style.background = 'var(--success)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.style.background = '';
+            }, 2000);
+        }
+
+        function copyToClipboard() {
+            const responseText = document.getElementById('responseText').value;
+            
+            navigator.clipboard.writeText(responseText).then(() => {
+                // Show feedback
+                const btn = event.target.closest('.btn-secondary');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Kopiert';
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                }, 2000);
+            }).catch(err => {
+                alert('Fehler beim Kopieren: ' + err);
+            });
+        }
+
+        // ================================
+        // DOCUMENTS FUNCTIONS
+        // ================================
+        
+        // Track uploaded documents
+        const uploadedDocs = new Set();
+        let currentEditingDocId = null;
+        
+        function toggleDocuments() {
+            const section = document.getElementById('documentsSection');
+            const isExpanding = !section.classList.contains('expanded');
+            
+            section.classList.toggle('expanded');
+            
+            // Smooth scroll to documents section when expanding
+            if (isExpanding) {
+                // Wait for expand animation to complete (300ms transition)
+                setTimeout(() => {
+                    section.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'end'
+                    });
+                }, 320);
+            }
+        }
+        
+        function toggleSelectAllDocs(checkbox) {
+            const docCheckboxes = document.querySelectorAll('.document-checkbox:not(:disabled)');
+            docCheckboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateBulkState();
+        }
+        
+        function updateBulkState() {
+            const allCheckboxes = document.querySelectorAll('.document-checkbox:not(:disabled)');
+            const checkedBoxes = document.querySelectorAll('.document-checkbox:checked:not(:disabled)');
+            const selectAllCheckbox = document.getElementById('selectAllDocs');
+            const bulkBtn = document.getElementById('btnBulkUpload');
+            
+            // Update "Select All" checkbox state
+            if (allCheckboxes.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedBoxes.length === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedBoxes.length === allCheckboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+            
+            // Update bulk button state
+            bulkBtn.disabled = checkedBoxes.length === 0;
+            
+            // Update documents count
+            updateDocumentsCount();
+        }
+        
+        function updateDocumentsCount() {
+            const totalDocs = document.querySelectorAll('.document-item').length;
+            const uploadedCount = uploadedDocs.size;
+            
+            const countEl = document.getElementById('documentsCount');
+            const iconEl = document.querySelector('.documents-icon');
+            
+            countEl.textContent = `${totalDocs}`;
+            
+            // Wenn alle hochgeladen, ändere Icon zu Häkchen
+            if (uploadedCount === totalDocs && totalDocs > 0) {
+                iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+                iconEl.style.color = 'var(--text-primary)';
+            } else {
+                iconEl.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>';
+                iconEl.style.color = 'var(--accent)';
+            }
+        }
+        
+        // Folder Selection Functions
+        function openFolderSelector(docId) {
+            if (uploadedDocs.has(docId)) return;
+            
+            currentEditingDocId = docId;
+            const docItem = document.getElementById(`doc-${docId}`);
+            const currentFolder = docItem.dataset.folder;
+            
+            // Update selected state in popup
+            const folderOptions = document.querySelectorAll('.folder-option');
+            folderOptions.forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.dataset.folder === currentFolder) {
+                    opt.classList.add('selected');
+                }
+            });
+            
+            // Show popup
+            document.getElementById('folderPopupOverlay').classList.add('active');
+        }
+        
+        function closeFolderSelector() {
+            document.getElementById('folderPopupOverlay').classList.remove('active');
+            currentEditingDocId = null;
+        }
+        
+        function selectFolder(element) {
+            if (!currentEditingDocId) return;
+            
+            const newFolder = element.dataset.folder;
+            const docItem = document.getElementById(`doc-${currentEditingDocId}`);
+            
+            // Update data attribute
+            docItem.dataset.folder = newFolder;
+            
+            // Update displayed folder text
+            const folderSelector = docItem.querySelector('.document-folder-selector span');
+            folderSelector.textContent = newFolder;
+            
+            console.log(`📁 Dokument ${currentEditingDocId}: Zielordner geändert zu "${newFolder}"`);
+            
+            closeFolderSelector();
+        }
+        
+        function uploadSelectedDocs() {
+            const checkedBoxes = document.querySelectorAll('.document-checkbox:checked:not(:disabled)');
+            if (checkedBoxes.length === 0) return;
+            
+            const bulkBtn = document.getElementById('btnBulkUpload');
+            const originalContent = bulkBtn.innerHTML;
+            
+            // Show loading state
+            bulkBtn.disabled = true;
+            bulkBtn.innerHTML = `
+                <span class="loading-spinner"></span>
+                Wird hochgeladen...
+            `;
+            
+            // Get all doc IDs to upload
+            const docsToUpload = Array.from(checkedBoxes).map(cb => cb.dataset.docId);
+            
+            // Upload each with slight delay for visual effect
+            let uploadIndex = 0;
+            const uploadNext = () => {
+                if (uploadIndex < docsToUpload.length) {
+                    const docId = docsToUpload[uploadIndex];
+                    
+                    // Mark as uploading
+                    const docItem = document.getElementById(`doc-${docId}`);
+                    docItem.classList.add('uploading');
+                    
+                    setTimeout(() => {
+                        uploadSingleDocInstant(docId);
+                        docItem.classList.remove('uploading');
+                        uploadIndex++;
+                        uploadNext();
+                    }, 400);
+                } else {
+                    // All done
+                    bulkBtn.innerHTML = originalContent;
+                    updateBulkState();
+                }
+            };
+            
+            uploadNext();
+        }
+        
+        function uploadSingleDocInstant(docId) {
+            if (uploadedDocs.has(docId)) return;
+            
+            const docItem = document.getElementById(`doc-${docId}`);
+            const checkbox = docItem.querySelector('.document-checkbox');
+            const folder = docItem.dataset.folder;
+            const folderBtn = docItem.querySelector('.document-folder-btn');
+            
+            // Mark as uploaded
+            uploadedDocs.add(docId);
+            docItem.classList.add('uploaded');
+            
+            // Update checkbox
+            checkbox.checked = false;
+            checkbox.disabled = true;
+            
+            // Disable folder btn and replace with badge
+            folderBtn.outerHTML = `
+                <span class="uploaded-badge">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Hochgeladen
+                </span>
+            `;
+            
+            console.log(`✅ Dokument "${docItem.querySelector('.document-name').textContent}" in "${folder}" hochgeladen`);
+        }
+
+        // ================================
+        // MANDANT FUNCTIONS
+        // ================================
+        
+        function openMandantDetails() {
+            // In real implementation: Open DATEV or mandant details
+            alert('Mandantenakte: Müller GmbH\nMandant-Nr: 10234\n\n(In der echten Umgebung würde hier die DATEV-Mandantenakte geöffnet werden)');
+        }
+
+        // ================================
+        // DASHBOARD FUNCTIONS
+        // ================================
+        
+        function copySummary() {
+            const summaryText = document.getElementById('summaryText').textContent;
+            navigator.clipboard.writeText(summaryText).then(() => {
+                const btn = event.target.closest('.section-icon-btn');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            });
+        }
+
+        function expandSummary() {
+            // Für Demo: könnte zu einer Detail-Ansicht führen
+            console.log('Zusammenfassung erweitern');
+        }
+
+        function refreshQuickReplies() {
+            const btn = event.target.closest('.section-icon-btn');
+            const svg = btn.querySelector('svg');
+            svg.style.transform = 'rotate(360deg)';
+            svg.style.transition = 'transform 0.5s ease';
+            setTimeout(() => {
+                svg.style.transform = 'rotate(0deg)';
+                svg.style.transition = '';
+            }, 500);
+            console.log('Schnellantworten aktualisiert');
+        }
+
+        function useQuickReply(button) {
+            const replyText = button.textContent;
+            // Wechsel zum E-Mail-Entwurf Tab und füge Text ein
+            switchTab('email');
+            setTimeout(() => {
+                const responseText = document.getElementById('responseText');
+                responseText.value = `Sehr geehrte Damen und Herren,\n\n${replyText}.\n\nMit freundlichen Grüßen`;
+                // Trigger input event for scrollbar update
+                responseText.dispatchEvent(new Event('input', { bubbles: true }));
+            }, 100);
+        }
+
+        // ================================
+        // CHAT FUNCTIONS
+        // ================================
+        
+        function initChatScrollbars() {
+            // Chat Messages Scrollbar
+            createCustomScrollbar('chatMessages', 'chatMessagesScrollbar', 'chatMessagesScrollbarThumb');
+        }
+        
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Füge User-Nachricht hinzu
+            addChatMessage(message, 'user');
+            
+            // Leere Input
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Simuliere AI-Antwort nach kurzer Verzögerung
+            setTimeout(() => {
+                const aiResponses = [
+                    'Vielen Dank für Ihre Frage. Gemäß § 13b UStG gilt hier das Reverse-Charge-Verfahren. Ich kann Ihnen gerne weitere Details erklären.',
+                    'Basierend auf den aktuellen Steuerrichtlinien empfehle ich folgende Vorgehensweise: Die Leistungen sind in der Umsatzsteuervoranmeldung unter Kennziffer 46 zu erfassen.',
+                    'Ihre Anfrage betrifft einen wichtigen Aspekt der Umsatzsteuerbehandlung. Lassen Sie mich das für Sie klären und eine detaillierte Antwort formulieren.',
+                    'Das ist eine sehr gute Frage! Bei grenzüberschreitenden digitalen Dienstleistungen gibt es einige Besonderheiten zu beachten.'
+                ];
+                const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+                addChatMessage(randomResponse, 'ai');
+            }, 800);
+        }
+
+        function addChatMessage(text, type) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            
+            if (type === 'ai') {
+                // AI Avatar mit Logo
+                const img = document.createElement('img');
+                img.src = 'https://i.imgur.com/SAeGvU4.png';
+                img.alt = 'Steuer-Einstein';
+                avatar.appendChild(img);
+            } else {
+                // User Avatar mit Text
+                avatar.textContent = 'Sie';
+            }
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(bubble);
+            
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll zu neuer Nachricht
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Update Scrollbar nach kurzer Verzögerung
+            setTimeout(() => {
+                const event = new Event('scroll', { bubbles: true });
+                chatMessages.dispatchEvent(event);
+            }, 50);
+        }
+
+        function autoResizeChatInput(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        function handleChatKeydown(event) {
+            // Enter ohne Shift sendet Nachricht
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendChatMessage();
+            }
+        }
+
+        // ================================
+        // KEYBOARD SHORTCUTS
+        // ================================
+        
+        document.addEventListener('keydown', function(e) {
+            // ESC to close popup
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('promptOverlay');
+                if (overlay.classList.contains('active')) {
+                    closePromptPopup();
+                }
+                // Schließe auch Tools-Popup
+                closeToolsPopup();
+                // Schließe Folder-Popup
+                closeFolderSelector();
+            }
+            
+            // Ctrl/Cmd + Enter to generate (when popup is open)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                const overlay = document.getElementById('promptOverlay');
+                if (overlay.classList.contains('active')) {
+                    e.preventDefault();
+                    generateWithPrompt();
+                }
+            }
+        });
+
+        // ================================
+        // INITIALIZATION
+        // ================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ KanzleiPlus Outlook Taskpane geladen');
+            
+            // Initialize custom scrollbar
+            initCustomScrollbar();
+        });
+    </script>
+</body>
+</html>
