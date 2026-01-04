@@ -6560,49 +6560,105 @@ Steuerberaterin</textarea>
             }, 100);
         }
         
-        function handleServerSubmit(event) {
+        async function handleServerSubmit(event) {
             event.preventDefault();
             const loading = document.getElementById('loadingStep1');
             const error = document.getElementById('errorStep1');
-            
+            const serverInput = document.getElementById('serverAddressInput');
+
             error.classList.remove('show');
             loading.classList.add('active');
-            
-            // Simulate server connection
-            setTimeout(() => {
+
+            try {
+                const result = await API.connect(serverInput.value.trim());
                 loading.classList.remove('active');
-                goToStep(2);
-            }, 1200);
+
+                if (result.success) {
+                    goToStep(2);
+                } else {
+                    error.textContent = result.error || 'Server nicht erreichbar';
+                    error.classList.add('show');
+                }
+            } catch (err) {
+                loading.classList.remove('active');
+                error.textContent = 'Server nicht erreichbar. Bitte Adresse prüfen.';
+                error.classList.add('show');
+            }
         }
         
-        function handleLoginSubmit(event) {
+        async function handleLoginSubmit(event) {
             event.preventDefault();
             const loading = document.getElementById('loadingStep2');
             const error = document.getElementById('errorStep2');
-            
+            const emailInput = document.getElementById('loginEmailInput');
+            const passwordInput = document.getElementById('loginPasswordInput');
+
             error.classList.remove('show');
             loading.classList.add('active');
-            
-            // Simulate login
-            setTimeout(() => {
+
+            try {
+                const result = await API.login(emailInput.value.trim(), passwordInput.value);
                 loading.classList.remove('active');
-                goToStep(3);
-            }, 1200);
+
+                if (result.success && result.data) {
+                    if (result.data.requiresTwoFactor) {
+                        // 2FA required - go to step 3
+                        goToStep(3);
+                    } else {
+                        // No 2FA - login complete
+                        completeLogin();
+                    }
+                } else {
+                    error.textContent = result.error || 'Ungültige Anmeldedaten';
+                    error.classList.add('show');
+                }
+            } catch (err) {
+                loading.classList.remove('active');
+                error.textContent = err.message || 'Anmeldung fehlgeschlagen';
+                error.classList.add('show');
+            }
         }
         
-        function handle2FASubmit(event) {
+        async function handle2FASubmit(event) {
             event.preventDefault();
             const loading = document.getElementById('loadingStep3');
             const error = document.getElementById('errorStep3');
-            
+
+            // Collect 2FA code from inputs
+            let code = '';
+            for (let i = 1; i <= 6; i++) {
+                code += document.getElementById(`2fa${i}`).value;
+            }
+
+            if (code.length !== 6) {
+                error.textContent = 'Bitte vollständigen Code eingeben';
+                error.classList.add('show');
+                return;
+            }
+
             error.classList.remove('show');
             loading.classList.add('active');
-            
-            // Simulate 2FA verification
-            setTimeout(() => {
+
+            try {
+                const result = await API.verify2FA(code);
                 loading.classList.remove('active');
-                completeLogin();
-            }, 1200);
+
+                if (result.success) {
+                    completeLogin();
+                } else {
+                    error.textContent = result.error || 'Ungültiger Code';
+                    error.classList.add('show');
+                    // Clear inputs
+                    for (let i = 1; i <= 6; i++) {
+                        document.getElementById(`2fa${i}`).value = '';
+                    }
+                    document.getElementById('2fa1').focus();
+                }
+            } catch (err) {
+                loading.classList.remove('active');
+                error.textContent = err.message || 'Verifizierung fehlgeschlagen';
+                error.classList.add('show');
+            }
         }
         
         function handle2FAInput(input, index) {
@@ -6672,17 +6728,46 @@ Steuerberaterin</textarea>
             // Hide login container, show main app
             const loginContainer = document.getElementById('loginContainer');
             loginContainer.classList.add('hidden');
-            
-            console.log('✅ Login completed successfully');
+
+            // Load user context
+            loadUserContext();
+
+            console.log('Anmeldung erfolgreich');
         }
         
-        // Initialize login - focus first input
+        // Initialize login - check for existing session or focus first input
         document.addEventListener('DOMContentLoaded', function() {
-            const serverInput = document.getElementById('serverAddressInput');
-            if (serverInput) {
-                setTimeout(() => serverInput.focus(), 300);
+            // Check if already authenticated
+            if (CONFIG.isAuthenticated()) {
+                // Hide login, show main app
+                const loginContainer = document.getElementById('loginContainer');
+                loginContainer.classList.add('hidden');
+                console.log('Session wiederhergestellt');
+
+                // Load context data
+                loadUserContext();
+            } else {
+                // Focus server input for login
+                const serverInput = document.getElementById('serverAddressInput');
+                if (serverInput) {
+                    setTimeout(() => serverInput.focus(), 300);
+                }
             }
         });
+
+        // Load user context after authentication
+        async function loadUserContext() {
+            try {
+                const result = await API.getContext();
+                if (result.success && result.data) {
+                    CONFIG.currentClient = result.data.defaultClient;
+                    // Update UI with user data if needed
+                    console.log('Kontext geladen:', result.data);
+                }
+            } catch (err) {
+                console.error('Fehler beim Laden des Kontexts:', err);
+            }
+        }
 
         // ================================
         // OFFICE.JS INITIALIZATION
@@ -7018,9 +7103,9 @@ Steuerberaterin</textarea>
             }
         }
 
-        function generateWithPrompt() {
+        async function generateWithPrompt() {
             const prompt = document.getElementById('promptInput').value.trim();
-            
+
             if (!prompt) {
                 alert('Bitte geben Sie einen Prompt ein.');
                 return;
@@ -7028,43 +7113,56 @@ Steuerberaterin</textarea>
 
             const generateBtn = document.getElementById('generateBtn');
             const originalContent = generateBtn.innerHTML;
-            
+
             // Loading state
             generateBtn.disabled = true;
             generateBtn.innerHTML = '<span class="loading-spinner"></span> Wird generiert...';
 
-            // Simulate generation (in real app, this would be an API call)
-            setTimeout(() => {
-                // Update response with new content
-                document.getElementById('responseText').value = `Sehr geehrte Frau Becker,
+            try {
+                // Get current email data from Outlook if available
+                let emailData = {};
+                if (typeof OfficeHelper !== 'undefined' && OfficeHelper.isOutlook()) {
+                    emailData = await OfficeHelper.getEmailData();
+                }
 
-herzlichen Dank für Ihre Anfrage zur Umsatzsteuervoranmeldung Q3 2025.
+                // Get current client ID
+                const clientId = CONFIG.currentClient?.id || null;
 
-Basierend auf Ihren Angaben habe ich eine detaillierte Analyse der steuerlichen Behandlung Ihrer Softwarelizenzen vorgenommen:
+                // Call the real API
+                const result = await API.generateEmailResponse({
+                    emailSubject: emailData.subject || '',
+                    emailBody: emailData.body || '',
+                    senderEmail: emailData.from || '',
+                    senderName: emailData.fromName || '',
+                    clientId: clientId,
+                    customPrompt: prompt
+                });
 
-[Hier würde die mit Ihrem individuellen Prompt generierte Antwort erscheinen...]
+                if (result.success && result.data) {
+                    // Update response with generated content
+                    const responseText = result.data.response || result.data.content || '';
+                    document.getElementById('responseText').value = responseText;
 
-Die vollständige Antwort berücksichtigt alle von Ihnen genannten Punkte und wurde nach Ihren spezifischen Vorgaben erstellt.
+                    // Update scrollbar
+                    const textarea = document.getElementById('responseText');
+                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
 
-Mit freundlichen Grüßen
-Dr. Maria Müller
-Steuerberaterin`;
+                    // Close popup
+                    closePromptPopup();
 
-                // Update scrollbar nach Content-Änderung
-                const textarea = document.getElementById('responseText');
-                const event = new Event('input', { bubbles: true });
-                textarea.dispatchEvent(event);
-
+                    // Show success feedback
+                    showSuccessMessage();
+                } else {
+                    throw new Error(result.error || 'Generierung fehlgeschlagen');
+                }
+            } catch (err) {
+                console.error('Email generation error:', err);
+                alert('Fehler bei der Generierung: ' + (err.message || 'Unbekannter Fehler'));
+            } finally {
                 // Reset button
                 generateBtn.disabled = false;
                 generateBtn.innerHTML = originalContent;
-                
-                // Close popup
-                closePromptPopup();
-                
-                // Show success feedback
-                showSuccessMessage();
-            }, 2000);
+            }
         }
 
         function showSuccessMessage() {
@@ -7414,23 +7512,41 @@ Steuerberaterin`;
             document.getElementById(tabMap[tabId]).classList.add('active');
         }
         
-        function performLogout() {
+        async function performLogout() {
             closeMitarbeiterPopup();
-            
+
+            try {
+                // Call logout API
+                await API.logout();
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+
+            // Clear stored data
+            CONFIG.clearAll();
+
             // Show login screen again
             const loginContainer = document.getElementById('loginContainer');
             loginContainer.classList.remove('hidden');
-            
+
             // Reset login to step 1
             goToStep(1);
-            
+
             // Clear 2FA inputs
             for (let i = 1; i <= 6; i++) {
                 const input = document.getElementById(`2fa${i}`);
                 if (input) input.value = '';
             }
-            
-            console.log('✅ User logged out');
+
+            // Clear other form inputs
+            const serverInput = document.getElementById('serverAddressInput');
+            if (serverInput) serverInput.value = '';
+            const emailInput = document.getElementById('loginEmailInput');
+            if (emailInput) emailInput.value = '';
+            const passwordInput = document.getElementById('loginPasswordInput');
+            if (passwordInput) passwordInput.value = '';
+
+            console.log('Benutzer abgemeldet');
         }
         
         // ================================
@@ -7449,38 +7565,66 @@ Steuerberaterin`;
             overlay.classList.remove('active');
         }
         
-        function saveNote() {
+        async function saveNote() {
             const noteText = document.getElementById('noteTextarea').value.trim();
             if (!noteText) return;
-            
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-            const dateStr = now.toLocaleDateString('de-DE');
-            
-            const activityId = 'act-' + Date.now();
-            const newActivity = `
-                <div class="activity-item" data-activity-id="${activityId}">
-                    <div class="activity-icon-wrapper notiz">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-text">Notiz: ${noteText}</div>
-                        <div class="activity-time">${timeStr} · ${dateStr}</div>
-                    </div>
-                    <button class="activity-pin-btn" onclick="togglePinActivity('${activityId}', this)" title="Anpinnen">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                        </svg>
-                    </button>
-                </div>
-            `;
-            
-            const timeline = document.getElementById('activityTimeline');
-            timeline.insertAdjacentHTML('afterbegin', newActivity);
-            
-            closeNoteModal();
+
+            const clientId = CONFIG.currentClient?.id;
+            if (!clientId) {
+                alert('Kein Mandant ausgewählt');
+                return;
+            }
+
+            const saveBtn = document.querySelector('.note-save-btn');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Wird gespeichert...';
+
+            try {
+                const result = await API.createNote(clientId, noteText);
+
+                if (result.success) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = now.toLocaleDateString('de-DE');
+
+                    const activityId = result.data?.id || ('act-' + Date.now());
+                    const newActivity = `
+                        <div class="activity-item" data-activity-id="${activityId}">
+                            <div class="activity-icon-wrapper notiz">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-text">Notiz: ${noteText}</div>
+                                <div class="activity-time">${timeStr} · ${dateStr}</div>
+                            </div>
+                            <button class="activity-pin-btn" onclick="togglePinActivity('${activityId}', this)" title="Anpinnen">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+
+                    const timeline = document.getElementById('activityTimeline');
+                    timeline.insertAdjacentHTML('afterbegin', newActivity);
+
+                    // Clear the textarea
+                    document.getElementById('noteTextarea').value = '';
+
+                    closeNoteModal();
+                } else {
+                    throw new Error(result.error || 'Fehler beim Speichern');
+                }
+            } catch (err) {
+                console.error('Note save error:', err);
+                alert('Fehler beim Speichern: ' + (err.message || 'Unbekannter Fehler'));
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
         }
         
         // ================================
@@ -7569,62 +7713,95 @@ Steuerberaterin`;
             overlay.classList.remove('active');
         }
         
-        function saveAufgabe() {
+        async function saveAufgabe() {
             const title = document.getElementById('aufgabeTitleInput').value.trim();
             if (!title) return;
-            
+
+            const clientId = CONFIG.currentClient?.id;
+            if (!clientId) {
+                alert('Kein Mandant ausgewählt');
+                return;
+            }
+
             const isHighPriority = document.getElementById('aufgabePriorityCheck').checked;
             const date = document.getElementById('aufgabeDateInput').value;
             const time = document.getElementById('aufgabeTimeInput').value;
             const assignee = document.getElementById('selectedAssigneeName').textContent;
             const assigneeAvatar = document.getElementById('selectedAssigneeAvatar').textContent;
-            
-            const aufgabeId = 'aufg-' + Date.now();
-            const formattedDate = new Date(date).toLocaleDateString('de-DE');
-            
-            const priorityClass = isHighPriority ? 'high' : 'medium';
-            const priorityIcon = isHighPriority ? 
-                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>' :
-                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>';
-            
-            const newAufgabe = `
-                <div class="aufgabe-card" data-aufgabe-id="${aufgabeId}">
-                    <div class="aufgabe-checkbox-wrapper">
-                        <input type="checkbox" class="aufgabe-checkbox" onchange="toggleAufgabeComplete('${aufgabeId}', this)">
-                    </div>
-                    <div class="aufgabe-content">
-                        <div class="aufgabe-title">${title}</div>
-                        <div class="aufgabe-meta">
-                            <span class="aufgabe-due">
+            const assigneeId = document.getElementById('selectedAssigneeId')?.value || null;
+
+            const saveBtn = document.querySelector('.aufgabe-save-btn');
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Wird erstellt...';
+
+            try {
+                const result = await API.createTask({
+                    clientId: clientId,
+                    title: title,
+                    priority: isHighPriority ? 'high' : 'normal',
+                    dueDate: date || null,
+                    dueTime: time || null,
+                    assignedToUserId: assigneeId
+                });
+
+                if (result.success) {
+                    const aufgabeId = result.data?.id || ('aufg-' + Date.now());
+                    const formattedDate = new Date(date).toLocaleDateString('de-DE');
+
+                    const priorityClass = isHighPriority ? 'high' : 'medium';
+                    const priorityIcon = isHighPriority ?
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>' :
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>';
+
+                    const newAufgabe = `
+                        <div class="aufgabe-card" data-aufgabe-id="${aufgabeId}">
+                            <div class="aufgabe-checkbox-wrapper">
+                                <input type="checkbox" class="aufgabe-checkbox" onchange="toggleAufgabeComplete('${aufgabeId}', this)">
+                            </div>
+                            <div class="aufgabe-content">
+                                <div class="aufgabe-title">${title}</div>
+                                <div class="aufgabe-meta">
+                                    <span class="aufgabe-due">
+                                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        ${formattedDate}${time ? ' ' + time : ''}
+                                    </span>
+                                    <span class="aufgabe-assignee">
+                                        <div class="aufgabe-assignee-avatar">${assigneeAvatar}</div>
+                                        ${assignee}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="aufgabe-priority ${priorityClass}">
                                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    ${priorityIcon}
                                 </svg>
-                                ${formattedDate}${time ? ' ' + time : ''}
-                            </span>
-                            <span class="aufgabe-assignee">
-                                <div class="aufgabe-assignee-avatar">${assigneeAvatar}</div>
-                                ${assignee}
-                            </span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="aufgabe-priority ${priorityClass}">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            ${priorityIcon}
-                        </svg>
-                    </div>
-                </div>
-            `;
-            
-            const aufgabenListEl = document.getElementById('aufgabenList');
-            aufgabenListEl.insertAdjacentHTML('afterbegin', newAufgabe);
-            
-            // Update count
-            updateAufgabenCount();
-            
-            // Add to activity timeline
-            addAufgabeToTimeline(title);
-            
-            closeAufgabeModal();
+                    `;
+
+                    const aufgabenListEl = document.getElementById('aufgabenList');
+                    aufgabenListEl.insertAdjacentHTML('afterbegin', newAufgabe);
+
+                    // Update count
+                    updateAufgabenCount();
+
+                    // Add to activity timeline
+                    addAufgabeToTimeline(title);
+
+                    closeAufgabeModal();
+                } else {
+                    throw new Error(result.error || 'Fehler beim Erstellen');
+                }
+            } catch (err) {
+                console.error('Task save error:', err);
+                alert('Fehler beim Erstellen: ' + (err.message || 'Unbekannter Fehler'));
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
         }
         
         function toggleAufgabeComplete(aufgabeId, checkbox) {
@@ -7832,32 +8009,64 @@ Steuerberaterin`;
             createCustomScrollbar('chatMessages', 'chatMessagesScrollbar', 'chatMessagesScrollbarThumb');
         }
         
-        function sendChatMessage() {
+        async function sendChatMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
-            
+
             // Get pending attachments (only completed ones)
             const attachments = chatPendingAttachments.filter(f => f.status === 'complete').map(f => ({
                 name: f.name,
                 size: f.size,
                 type: f.type,
-                thumbnailUrl: f.thumbnailUrl
+                thumbnailUrl: f.thumbnailUrl,
+                id: f.id // Include ID for API call
             }));
-            
+
             if (!message && attachments.length === 0) return;
-            
+
             // Clear attachments preview
             clearChatAttachments();
-            
+
             // User-Nachricht hinzufügen (mit oder ohne Attachments)
             addChatMessage(message, 'user', attachments);
-            
+
             // Input leeren
             input.value = '';
             input.style.height = 'auto';
-            
+
             // Thinking Animation starten
             showThinkingDot();
+
+            // Send message to API
+            try {
+                const clientId = CONFIG.currentClient?.id || null;
+                const attachmentIds = attachments.map(a => a.id).filter(Boolean);
+
+                const result = await API.sendChatMessage({
+                    message: message,
+                    clientId: clientId,
+                    attachmentIds: attachmentIds
+                });
+
+                // Hide thinking animation
+                hideThinkingAnimation(true);
+
+                if (result.success && result.data) {
+                    // Add AI response
+                    setTimeout(() => {
+                        const responseText = result.data.response || result.data.content || 'Keine Antwort erhalten.';
+                        addChatMessage(responseText, 'ai', null, result.data.sources);
+                    }, 300);
+                } else {
+                    throw new Error(result.error || 'Anfrage fehlgeschlagen');
+                }
+            } catch (err) {
+                console.error('Chat error:', err);
+                hideThinkingAnimation(true);
+                setTimeout(() => {
+                    addChatMessage('Fehler: ' + (err.message || 'Anfrage fehlgeschlagen'), 'ai');
+                }, 300);
+            }
         }
 
         // ================================
@@ -7990,20 +8199,8 @@ Steuerberaterin`;
                 }
             }, 100);
             
-            // Simuliere AI-Antwort nach der Animation
-            setTimeout(() => {
-                hideThinkingAnimation(true);
-                setTimeout(() => {
-                    const aiResponses = [
-                        'Vielen Dank für Ihre Frage. Gemäß § 13b UStG gilt hier das Reverse-Charge-Verfahren. Ich kann Ihnen gerne weitere Details erklären.',
-                        'Basierend auf den aktuellen Steuerrichtlinien empfehle ich folgende Vorgehensweise: Die Leistungen sind in der Umsatzsteuervoranmeldung unter Kennziffer 46 zu erfassen.',
-                        'Ihre Anfrage betrifft einen wichtigen Aspekt der Umsatzsteuerbehandlung. Lassen Sie mich das für Sie klären und eine detaillierte Antwort formulieren.',
-                        'Das ist eine sehr gute Frage! Bei grenzüberschreitenden digitalen Dienstleistungen gibt es einige Besonderheiten zu beachten.'
-                    ];
-                    const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-                    addChatMessage(randomResponse, 'ai');
-                }, 300);
-            }, 5000);
+            // Note: The actual API call and response handling is done in sendChatMessage()
+            // The thinking animation will be hidden by sendChatMessage when the response arrives
         }
         
         function hideThinkingAnimation(animate = true) {
@@ -8810,16 +9007,1822 @@ Steuerberaterin`;
         // ================================
         // INITIALIZATION
         // ================================
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('✅ KanzleiPlus Outlook Taskpane geladen');
-            
+
             // Initialize custom scrollbar
             initCustomScrollbar();
-            
+
             // Initialize attachments dropzone
             initAttachmentsDropzone();
         });
+    </script>
+
+    <!-- KanzleiPRO API Modules - All Inline -->
+    <script>
+/**
+ * KanzleiPRO Add-In Configuration
+ * Central configuration for API endpoints and settings
+ */
+
+const CONFIG = {
+    // Storage keys
+    STORAGE_KEYS: {
+        SERVER_URL: 'kanzlei_server_url',
+        ACCESS_TOKEN: 'kanzlei_access_token',
+        REFRESH_TOKEN: 'kanzlei_refresh_token',
+        USER_DATA: 'kanzlei_user_data',
+        SESSION_ID: 'kanzlei_session_id',
+        CURRENT_CLIENT: 'kanzlei_current_client'
+    },
+
+    // API endpoints (relative to server URL)
+    ENDPOINTS: {
+        // Auth endpoints
+        AUTH: {
+            CONNECT: '/api/addin/auth/connect',
+            LOGIN: '/api/addin/auth/login',
+            VERIFY_2FA: '/api/addin/auth/verify-2fa',
+            REFRESH: '/api/addin/auth/refresh',
+            LOGOUT: '/api/addin/auth/logout'
+        },
+        // Context
+        CONTEXT: '/api/addin/context',
+        // Clients
+        CLIENTS: {
+            LIST: '/api/addin/clients',
+            GET: (id) => `/api/addin/clients/${id}`,
+            TEAM: (id) => `/api/addin/clients/${id}/team`
+        },
+        // Email
+        EMAIL: {
+            ASYNC: '/api/addin/email/async',
+            STATUS: (jobId) => `/api/addin/email/status/${jobId}`,
+            QUICK_REPLIES: '/api/addin/email/quick-replies',
+            DETECT_CLIENT: '/api/addin/email/detect-client'
+        },
+        // Chat
+        CHAT: {
+            ASYNC: '/api/addin/chat/async',
+            STATUS: (jobId) => `/api/addin/chat/status/${jobId}`,
+            UPLOAD: '/api/addin/chat/upload'
+        },
+        // Documents
+        DOCUMENTS: {
+            UPLOAD: '/api/addin/documents/upload',
+            FOLDERS: '/api/addin/documents/folders'
+        },
+        // Tasks & Notes
+        TASKS: '/api/addin/tasks',
+        NOTES: '/api/addin/notes'
+    },
+
+    // Polling configuration
+    POLLING: {
+        INTERVAL: 500,      // 500ms between polls
+        MAX_ATTEMPTS: 120,  // Maximum 60 seconds (120 * 500ms)
+        TIMEOUT: 60000      // 60 second timeout
+    },
+
+    // Getters/setters for storage
+    get serverUrl() {
+        return localStorage.getItem(this.STORAGE_KEYS.SERVER_URL) || '';
+    },
+    set serverUrl(url) {
+        if (url) {
+            localStorage.setItem(this.STORAGE_KEYS.SERVER_URL, url);
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.SERVER_URL);
+        }
+    },
+
+    get accessToken() {
+        return localStorage.getItem(this.STORAGE_KEYS.ACCESS_TOKEN) || '';
+    },
+    set accessToken(token) {
+        if (token) {
+            localStorage.setItem(this.STORAGE_KEYS.ACCESS_TOKEN, token);
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.ACCESS_TOKEN);
+        }
+    },
+
+    get refreshToken() {
+        return localStorage.getItem(this.STORAGE_KEYS.REFRESH_TOKEN) || '';
+    },
+    set refreshToken(token) {
+        if (token) {
+            localStorage.setItem(this.STORAGE_KEYS.REFRESH_TOKEN, token);
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.REFRESH_TOKEN);
+        }
+    },
+
+    get sessionId() {
+        return localStorage.getItem(this.STORAGE_KEYS.SESSION_ID) || '';
+    },
+    set sessionId(id) {
+        if (id) {
+            localStorage.setItem(this.STORAGE_KEYS.SESSION_ID, id);
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.SESSION_ID);
+        }
+    },
+
+    get userData() {
+        const data = localStorage.getItem(this.STORAGE_KEYS.USER_DATA);
+        return data ? JSON.parse(data) : null;
+    },
+    set userData(data) {
+        if (data) {
+            localStorage.setItem(this.STORAGE_KEYS.USER_DATA, JSON.stringify(data));
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.USER_DATA);
+        }
+    },
+
+    get currentClient() {
+        const data = localStorage.getItem(this.STORAGE_KEYS.CURRENT_CLIENT);
+        return data ? JSON.parse(data) : null;
+    },
+    set currentClient(client) {
+        if (client) {
+            localStorage.setItem(this.STORAGE_KEYS.CURRENT_CLIENT, JSON.stringify(client));
+        } else {
+            localStorage.removeItem(this.STORAGE_KEYS.CURRENT_CLIENT);
+        }
+    },
+
+    // Clear all stored data (logout)
+    clearAll() {
+        Object.values(this.STORAGE_KEYS).forEach(key => {
+            localStorage.removeItem(key);
+        });
+    },
+
+    // Check if authenticated
+    isAuthenticated() {
+        return !!this.accessToken && !!this.serverUrl;
+    }
+};
+
+/**
+ * KanzleiPRO Add-In API Client
+ * Handles all HTTP requests to the backend with authentication
+ */
+
+const API = {
+    /**
+     * Make an authenticated API call
+     */
+    async call(endpoint, options = {}) {
+        const url = `${CONFIG.serverUrl}${endpoint}`;
+
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+
+        if (CONFIG.accessToken) {
+            headers['Authorization'] = `Bearer ${CONFIG.accessToken}`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            if (response.status === 401 && CONFIG.refreshToken) {
+                const refreshed = await this.refreshToken();
+                if (refreshed) {
+                    headers['Authorization'] = `Bearer ${CONFIG.accessToken}`;
+                    const retryResponse = await fetch(url, {
+                        ...options,
+                        headers
+                    });
+                    return this.handleResponse(retryResponse);
+                } else {
+                    this.handleAuthError();
+                    throw new Error('Sitzung abgelaufen');
+                }
+            }
+
+            return this.handleResponse(response);
+        } catch (error) {
+            console.error('API call failed:', error);
+            throw error;
+        }
+    },
+
+    async handleResponse(response) {
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.error || data.message || 'Ein Fehler ist aufgetreten');
+            error.status = response.status;
+            error.data = data;
+            throw error;
+        }
+
+        return data;
+    },
+
+    async refreshToken() {
+        try {
+            const response = await fetch(`${CONFIG.serverUrl}${CONFIG.ENDPOINTS.AUTH.REFRESH}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    refreshToken: CONFIG.refreshToken
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data) {
+                    CONFIG.accessToken = data.data.accessToken;
+                    if (data.data.refreshToken) {
+                        CONFIG.refreshToken = data.data.refreshToken;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            return false;
+        }
+    },
+
+    handleAuthError() {
+        CONFIG.clearAll();
+        if (typeof showLoginScreen === 'function') {
+            showLoginScreen();
+        }
+    },
+
+    async pollJob(jobId, type = 'chat', onProgress = null) {
+        const endpoint = type === 'email'
+            ? CONFIG.ENDPOINTS.EMAIL.STATUS(jobId)
+            : CONFIG.ENDPOINTS.CHAT.STATUS(jobId);
+
+        let attempts = 0;
+        const maxAttempts = CONFIG.POLLING.MAX_ATTEMPTS;
+        const interval = CONFIG.POLLING.INTERVAL;
+
+        while (attempts < maxAttempts) {
+            try {
+                const result = await this.call(endpoint, { method: 'GET' });
+
+                if (result.success && result.data) {
+                    const status = result.data.status;
+
+                    if (onProgress) {
+                        onProgress(result.data);
+                    }
+
+                    if (status === 'completed' || status === 'failed') {
+                        return result;
+                    }
+                }
+
+                await new Promise(resolve => setTimeout(resolve, interval));
+                attempts++;
+            } catch (error) {
+                console.error('Polling error:', error);
+                throw error;
+            }
+        }
+
+        throw new Error('Zeitüberschreitung bei der Verarbeitung');
+    },
+
+    // Auth Methods
+    async connect(serverAddress) {
+        let url = serverAddress.trim();
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = `https://${url}`;
+        }
+        url = url.replace(/\/$/, '');
+
+        const response = await fetch(`${url}${CONFIG.ENDPOINTS.AUTH.CONNECT}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverAddress: url })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            CONFIG.serverUrl = url;
+        }
+
+        return data;
+    },
+
+    async login(email, password) {
+        const result = await this.call(CONFIG.ENDPOINTS.AUTH.LOGIN, {
+            method: 'POST',
+            body: JSON.stringify({ email, password })
+        });
+
+        if (result.success && result.data) {
+            if (result.data.requiresTwoFactor) {
+                CONFIG.sessionId = result.data.sessionId;
+            } else if (result.data.accessToken) {
+                this.handleLoginSuccess(result.data);
+            }
+        }
+
+        return result;
+    },
+
+    async verify2FA(code) {
+        const result = await this.call(CONFIG.ENDPOINTS.AUTH.VERIFY_2FA, {
+            method: 'POST',
+            body: JSON.stringify({
+                code,
+                sessionId: CONFIG.sessionId
+            })
+        });
+
+        if (result.success && result.data && result.data.accessToken) {
+            this.handleLoginSuccess(result.data);
+        }
+
+        return result;
+    },
+
+    handleLoginSuccess(data) {
+        CONFIG.accessToken = data.accessToken;
+        CONFIG.refreshToken = data.refreshToken;
+        CONFIG.userData = data.user;
+        CONFIG.sessionId = '';
+    },
+
+    async logout() {
+        try {
+            await this.call(CONFIG.ENDPOINTS.AUTH.LOGOUT, {
+                method: 'POST'
+            });
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            CONFIG.clearAll();
+        }
+    },
+
+    // Context & Client Methods
+    async getContext() {
+        return this.call(CONFIG.ENDPOINTS.CONTEXT, { method: 'GET' });
+    },
+
+    async listClients() {
+        return this.call(CONFIG.ENDPOINTS.CLIENTS.LIST, { method: 'GET' });
+    },
+
+    async getClient(clientId) {
+        return this.call(CONFIG.ENDPOINTS.CLIENTS.GET(clientId), { method: 'GET' });
+    },
+
+    async getClientTeam(clientId) {
+        return this.call(CONFIG.ENDPOINTS.CLIENTS.TEAM(clientId), { method: 'GET' });
+    },
+
+    // Email Methods
+    async generateEmailResponse(params, onProgress = null) {
+        const { emailSubject, emailBody, senderEmail, senderName, clientId, customPrompt, userSignature } = params;
+
+        const jobResult = await this.call(CONFIG.ENDPOINTS.EMAIL.ASYNC, {
+            method: 'POST',
+            body: JSON.stringify({
+                emailSubject,
+                emailBody,
+                senderEmail,
+                senderName,
+                clientId,
+                customPrompt,
+                userSignature
+            })
+        });
+
+        if (!jobResult.success || !jobResult.data || !jobResult.data.jobId) {
+            throw new Error('Fehler beim Starten der E-Mail-Generierung');
+        }
+
+        return this.pollJob(jobResult.data.jobId, 'email', onProgress);
+    },
+
+    async getQuickReplies() {
+        return this.call(CONFIG.ENDPOINTS.EMAIL.QUICK_REPLIES, { method: 'GET' });
+    },
+
+    async detectClient(params) {
+        return this.call(CONFIG.ENDPOINTS.EMAIL.DETECT_CLIENT, {
+            method: 'POST',
+            body: JSON.stringify(params)
+        });
+    },
+
+    // Chat Methods
+    async sendChatMessage(params, onProgress = null) {
+        const { message, clientId, conversationId, attachmentIds } = params;
+
+        const jobResult = await this.call(CONFIG.ENDPOINTS.CHAT.ASYNC, {
+            method: 'POST',
+            body: JSON.stringify({
+                message,
+                clientId,
+                conversationId,
+                attachmentIds
+            })
+        });
+
+        if (!jobResult.success || !jobResult.data || !jobResult.data.jobId) {
+            throw new Error('Fehler beim Starten der Chat-Anfrage');
+        }
+
+        return this.pollJob(jobResult.data.jobId, 'chat', onProgress);
+    },
+
+    async uploadChatAttachment(file, conversationId = '', clientId = '') {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (conversationId) formData.append('conversationId', conversationId);
+        if (clientId) formData.append('clientId', clientId);
+
+        return this.call(CONFIG.ENDPOINTS.CHAT.UPLOAD, {
+            method: 'POST',
+            headers: {},
+            body: formData
+        });
+    },
+
+    // Document Methods
+    async uploadDocument(file, clientId, metadata = {}) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('clientId', clientId);
+        if (metadata.documentType) formData.append('documentType', metadata.documentType);
+        if (metadata.documentDate) formData.append('documentDate', metadata.documentDate);
+        if (metadata.notes) formData.append('notes', metadata.notes);
+
+        return this.call(CONFIG.ENDPOINTS.DOCUMENTS.UPLOAD, {
+            method: 'POST',
+            headers: {},
+            body: formData
+        });
+    },
+
+    async getDocumentFolders(clientId = '') {
+        const endpoint = clientId
+            ? `${CONFIG.ENDPOINTS.DOCUMENTS.FOLDERS}?clientId=${clientId}`
+            : CONFIG.ENDPOINTS.DOCUMENTS.FOLDERS;
+        return this.call(endpoint, { method: 'GET' });
+    },
+
+    // Task & Note Methods
+    async createTask(params) {
+        const { clientId, title, description, priority, dueDate, dueTime, assignedToUserId } = params;
+
+        return this.call(CONFIG.ENDPOINTS.TASKS, {
+            method: 'POST',
+            body: JSON.stringify({
+                clientId,
+                title,
+                description,
+                priority,
+                dueDate,
+                dueTime,
+                assignedToUserId
+            })
+        });
+    },
+
+    async createNote(clientId, content) {
+        return this.call(CONFIG.ENDPOINTS.NOTES, {
+            method: 'POST',
+            body: JSON.stringify({
+                clientId,
+                content
+            })
+        });
+    }
+};
+
+/**
+ * KanzleiPRO Add-In Authentication Module
+ */
+
+const Auth = {
+    currentStep: 1,
+    state: {
+        serverAddress: '',
+        email: '',
+        requiresTwoFactor: false
+    },
+
+    init() {
+        if (CONFIG.isAuthenticated()) {
+            this.showMainApp();
+            return;
+        }
+        this.showLoginScreen();
+        this.bindEvents();
+    },
+
+    bindEvents() {
+        const serverForm = document.getElementById('serverForm');
+        if (serverForm) {
+            serverForm.addEventListener('submit', (e) => this.handleServerSubmit(e));
+        }
+
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLoginSubmit(e));
+        }
+
+        const twoFaForm = document.getElementById('twoFaForm');
+        if (twoFaForm) {
+            twoFaForm.addEventListener('submit', (e) => this.handle2FASubmit(e));
+        }
+
+        document.querySelectorAll('.two-fa-input').forEach((input, index) => {
+            input.addEventListener('input', (e) => this.handle2FAInput(e.target, index));
+            input.addEventListener('keydown', (e) => this.handle2FAKeydown(e, index));
+        });
+
+        const passwordToggle = document.querySelector('.toggle-password');
+        if (passwordToggle) {
+            passwordToggle.addEventListener('click', () => this.toggleLoginPassword());
+        }
+
+        const resendBtn = document.querySelector('.resend-2fa');
+        if (resendBtn) {
+            resendBtn.addEventListener('click', () => this.resend2FACode());
+        }
+    },
+
+    showLoginScreen() {
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.classList.remove('hidden');
+        }
+        this.goToStep(1);
+    },
+
+    hideLoginScreen() {
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.classList.add('hidden');
+        }
+    },
+
+    showMainApp() {
+        this.hideLoginScreen();
+        if (typeof initializeApp === 'function') {
+            initializeApp();
+        }
+    },
+
+    goToStep(step) {
+        this.currentStep = step;
+
+        document.querySelectorAll('.login-step').forEach(s => {
+            s.classList.remove('active');
+            s.style.display = 'none';
+        });
+
+        const currentStepEl = document.querySelector(`.login-step[data-step="${step}"]`);
+        if (currentStepEl) {
+            currentStepEl.classList.add('active');
+            currentStepEl.style.display = 'block';
+
+            setTimeout(() => {
+                const input = currentStepEl.querySelector('input:not([type="hidden"])');
+                if (input) input.focus();
+            }, 300);
+        }
+
+        document.querySelectorAll('.login-progress-step').forEach((indicator, i) => {
+            indicator.classList.toggle('active', i + 1 <= step);
+            indicator.classList.toggle('completed', i + 1 < step);
+        });
+    },
+
+    async handleServerSubmit(event) {
+        event.preventDefault();
+
+        const serverInput = document.getElementById('serverAddress');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        const errorEl = document.querySelector('.login-error');
+
+        if (!serverInput || !submitBtn) return;
+
+        const serverAddress = serverInput.value.trim();
+        if (!serverAddress) {
+            this.showError('Bitte geben Sie eine Server-Adresse ein');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0110 10" stroke-linecap="round"/>
+            </svg>
+            Verbinde...
+        `;
+
+        try {
+            const result = await API.connect(serverAddress);
+
+            if (result.success) {
+                this.state.serverAddress = serverAddress;
+                this.hideError();
+                this.goToStep(2);
+            } else {
+                this.showError(result.error || 'Server nicht erreichbar');
+            }
+        } catch (error) {
+            console.error('Server connection error:', error);
+            this.showError('Server nicht erreichbar. Bitte überprüfen Sie die Adresse.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    },
+
+    async handleLoginSubmit(event) {
+        event.preventDefault();
+
+        const emailInput = document.getElementById('loginEmail');
+        const passwordInput = document.getElementById('loginPassword');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+
+        if (!emailInput || !passwordInput || !submitBtn) return;
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+            this.showError('Bitte füllen Sie alle Felder aus');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0110 10" stroke-linecap="round"/>
+            </svg>
+            Anmelden...
+        `;
+
+        try {
+            const result = await API.login(email, password);
+
+            if (result.success && result.data) {
+                this.state.email = email;
+                this.hideError();
+
+                if (result.data.requiresTwoFactor) {
+                    this.state.requiresTwoFactor = true;
+                    this.goToStep(3);
+                } else {
+                    this.completeLogin();
+                }
+            } else {
+                this.showError(result.error || 'Ungültige Anmeldedaten');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            this.showError(error.message || 'Anmeldung fehlgeschlagen');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    },
+
+    async handle2FASubmit(event) {
+        event.preventDefault();
+
+        const inputs = document.querySelectorAll('.two-fa-input');
+        const code = Array.from(inputs).map(i => i.value).join('');
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+
+        if (code.length !== 6) {
+            this.showError('Bitte geben Sie den vollständigen Code ein');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = `
+            <svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0110 10" stroke-linecap="round"/>
+            </svg>
+            Verifiziere...
+        `;
+
+        try {
+            const result = await API.verify2FA(code);
+
+            if (result.success) {
+                this.hideError();
+                this.completeLogin();
+            } else {
+                this.showError(result.error || 'Ungültiger Code');
+                inputs.forEach(i => i.value = '');
+                inputs[0].focus();
+            }
+        } catch (error) {
+            console.error('2FA verification error:', error);
+            this.showError(error.message || 'Verifizierung fehlgeschlagen');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    },
+
+    handle2FAInput(input, index) {
+        const value = input.value;
+        input.value = value.replace(/\D/g, '').slice(0, 1);
+
+        if (input.value && index < 5) {
+            const nextInput = document.querySelectorAll('.two-fa-input')[index + 1];
+            if (nextInput) nextInput.focus();
+        }
+
+        this.checkAutoSubmit2FA();
+    },
+
+    handle2FAKeydown(event, index) {
+        if (event.key === 'Backspace' && !event.target.value && index > 0) {
+            const prevInput = document.querySelectorAll('.two-fa-input')[index - 1];
+            if (prevInput) {
+                prevInput.focus();
+                prevInput.value = '';
+            }
+        }
+    },
+
+    checkAutoSubmit2FA() {
+        const inputs = document.querySelectorAll('.two-fa-input');
+        const code = Array.from(inputs).map(i => i.value).join('');
+
+        if (code.length === 6) {
+            const form = document.getElementById('twoFaForm');
+            if (form) {
+                setTimeout(() => {
+                    form.dispatchEvent(new Event('submit', { cancelable: true }));
+                }, 100);
+            }
+        }
+    },
+
+    async resend2FACode() {
+        const resendBtn = document.querySelector('.resend-2fa');
+        if (!resendBtn || resendBtn.disabled) return;
+
+        resendBtn.disabled = true;
+        const originalText = resendBtn.textContent;
+        resendBtn.textContent = 'Wird gesendet...';
+
+        try {
+            await API.login(this.state.email, '');
+
+            resendBtn.textContent = 'Code gesendet!';
+            setTimeout(() => {
+                resendBtn.textContent = originalText;
+                resendBtn.disabled = false;
+            }, 3000);
+        } catch (error) {
+            resendBtn.textContent = 'Erneut versuchen';
+            resendBtn.disabled = false;
+        }
+    },
+
+    toggleLoginPassword() {
+        const passwordInput = document.getElementById('loginPassword');
+        const toggleBtn = document.querySelector('.toggle-password');
+
+        if (!passwordInput || !toggleBtn) return;
+
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+
+        toggleBtn.innerHTML = isPassword ? `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+        ` : `
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        `;
+    },
+
+    completeLogin() {
+        document.querySelectorAll('.login-step input').forEach(input => {
+            if (input.type !== 'hidden') {
+                input.value = '';
+            }
+        });
+
+        this.state = {
+            serverAddress: '',
+            email: '',
+            requiresTwoFactor: false
+        };
+
+        this.showMainApp();
+    },
+
+    async logout() {
+        try {
+            await API.logout();
+        } finally {
+            this.showLoginScreen();
+        }
+    },
+
+    showError(message) {
+        const errorEl = document.querySelector('.login-step.active .login-error');
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+    },
+
+    hideError() {
+        document.querySelectorAll('.login-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+    }
+};
+
+function showLoginScreen() {
+    Auth.showLoginScreen();
+}
+
+function performLogout() {
+    Auth.logout();
+}
+
+/**
+ * KanzleiPRO Add-In Office.js Integration
+ */
+
+const OfficeHelper = {
+    context: null,
+    mailboxItem: null,
+
+    currentEmail: {
+        from: '',
+        fromName: '',
+        subject: '',
+        body: ''
+    },
+
+    init() {
+        return new Promise((resolve) => {
+            if (typeof Office === 'undefined') {
+                console.log('Office.js not available - running in standalone mode');
+                resolve(false);
+                return;
+            }
+
+            Office.onReady((info) => {
+                if (info.host === Office.HostType.Outlook) {
+                    this.context = Office.context;
+                    this.mailboxItem = this.context.mailbox?.item;
+                    console.log('Office.js initialized for Outlook');
+                    resolve(true);
+                } else {
+                    console.log('Not running in Outlook');
+                    resolve(false);
+                }
+            });
+        });
+    },
+
+    isOutlook() {
+        return !!this.mailboxItem;
+    },
+
+    async getEmailData() {
+        if (!this.mailboxItem) {
+            return this.currentEmail;
+        }
+
+        try {
+            const from = await this.getAsync(this.mailboxItem.from, 'getAsync');
+            if (from) {
+                this.currentEmail.from = from.emailAddress || '';
+                this.currentEmail.fromName = from.displayName || '';
+            }
+
+            const subject = await this.getPropertyAsync(this.mailboxItem, 'subject');
+            this.currentEmail.subject = subject || '';
+
+            const body = await this.getBodyAsync();
+            this.currentEmail.body = body || '';
+
+            return this.currentEmail;
+        } catch (error) {
+            console.error('Error getting email data:', error);
+            return this.currentEmail;
+        }
+    },
+
+    getAsync(item, method) {
+        return new Promise((resolve) => {
+            if (!item || typeof item[method] !== 'function') {
+                resolve(null);
+                return;
+            }
+
+            item[method]((result) => {
+                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                    resolve(result.value);
+                } else {
+                    console.error('Office async error:', result.error);
+                    resolve(null);
+                }
+            });
+        });
+    },
+
+    getPropertyAsync(item, property) {
+        return new Promise((resolve) => {
+            if (!item || !item[property]) {
+                resolve(null);
+                return;
+            }
+
+            const prop = item[property];
+            if (typeof prop.getAsync === 'function') {
+                prop.getAsync((result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        resolve(result.value);
+                    } else {
+                        resolve(null);
+                    }
+                });
+            } else {
+                resolve(prop);
+            }
+        });
+    },
+
+    getBodyAsync() {
+        return new Promise((resolve) => {
+            if (!this.mailboxItem || !this.mailboxItem.body) {
+                resolve('');
+                return;
+            }
+
+            this.mailboxItem.body.getAsync(
+                Office.CoercionType.Text,
+                (result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        resolve(result.value);
+                    } else {
+                        resolve('');
+                    }
+                }
+            );
+        });
+    },
+
+    async insertText(text, coercionType = 'text') {
+        if (!this.mailboxItem || !this.mailboxItem.body) {
+            console.log('Cannot insert text - not in compose mode');
+            return false;
+        }
+
+        return new Promise((resolve) => {
+            const type = coercionType === 'html'
+                ? Office.CoercionType.Html
+                : Office.CoercionType.Text;
+
+            this.mailboxItem.body.setSelectedDataAsync(
+                text,
+                { coercionType: type },
+                (result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('Text inserted successfully');
+                        resolve(true);
+                    } else {
+                        console.error('Failed to insert text:', result.error);
+                        resolve(false);
+                    }
+                }
+            );
+        });
+    },
+
+    async setBody(text, coercionType = 'text') {
+        if (!this.mailboxItem || !this.mailboxItem.body) {
+            console.log('Cannot set body - not in compose mode');
+            return false;
+        }
+
+        return new Promise((resolve) => {
+            const type = coercionType === 'html'
+                ? Office.CoercionType.Html
+                : Office.CoercionType.Text;
+
+            this.mailboxItem.body.setAsync(
+                text,
+                { coercionType: type },
+                (result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        console.log('Body set successfully');
+                        resolve(true);
+                    } else {
+                        console.error('Failed to set body:', result.error);
+                        resolve(false);
+                    }
+                }
+            );
+        });
+    },
+
+    async getAttachments() {
+        if (!this.mailboxItem || !this.mailboxItem.attachments) {
+            return [];
+        }
+
+        try {
+            const attachments = await this.getPropertyAsync(this.mailboxItem, 'attachments');
+            return attachments || [];
+        } catch (error) {
+            console.error('Error getting attachments:', error);
+            return [];
+        }
+    },
+
+    showNotification(message, type = 'informational') {
+        if (!this.mailboxItem || !this.mailboxItem.notificationMessages) {
+            console.log('Notification:', message);
+            return;
+        }
+
+        const key = 'kanzlei_notification_' + Date.now();
+        const messageType = type === 'error'
+            ? Office.MailboxEnums.ItemNotificationMessageType.ErrorMessage
+            : Office.MailboxEnums.ItemNotificationMessageType.InformationalMessage;
+
+        this.mailboxItem.notificationMessages.addAsync(key, {
+            type: messageType,
+            message: message,
+            icon: 'icon-16',
+            persistent: false
+        });
+    },
+
+    getUserProfile() {
+        if (!this.context || !this.context.mailbox || !this.context.mailbox.userProfile) {
+            return null;
+        }
+
+        const profile = this.context.mailbox.userProfile;
+        return {
+            displayName: profile.displayName,
+            emailAddress: profile.emailAddress,
+            timeZone: profile.timeZone
+        };
+    },
+
+    composeNewEmail(options = {}) {
+        if (!this.context || !this.context.mailbox) {
+            console.log('Cannot compose - not in Outlook');
+            return;
+        }
+
+        this.context.mailbox.displayNewMessageForm({
+            toRecipients: options.to || [],
+            ccRecipients: options.cc || [],
+            subject: options.subject || '',
+            htmlBody: options.body || '',
+            attachments: options.attachments || []
+        });
+    }
+};
+
+function insertTextIntoOutlook(text) {
+    return OfficeHelper.insertText(text, 'text');
+}
+
+/**
+ * KanzleiPRO Add-In Main Application
+ */
+
+const App = {
+    state: {
+        currentTab: 'email',
+        currentClient: null,
+        emailData: null,
+        isGenerating: false,
+        chatMessages: [],
+        attachments: []
+    },
+
+    async init() {
+        console.log('Initializing KanzleiPRO Add-In...');
+
+        const isOutlook = await OfficeHelper.init();
+        console.log('Running in Outlook:', isOutlook);
+
+        if (!CONFIG.isAuthenticated()) {
+            Auth.init();
+            return;
+        }
+
+        await this.loadInitialData();
+        this.bindEvents();
+        Auth.hideLoginScreen();
+
+        console.log('KanzleiPRO Add-In initialized');
+    },
+
+    async loadInitialData() {
+        try {
+            const contextResult = await API.getContext();
+            if (contextResult.success && contextResult.data) {
+                this.state.currentClient = contextResult.data.defaultClient;
+                CONFIG.currentClient = contextResult.data.defaultClient;
+                this.updateClientDisplay();
+            }
+
+            if (OfficeHelper.isOutlook()) {
+                this.state.emailData = await OfficeHelper.getEmailData();
+                this.updateEmailDisplay();
+
+                if (this.state.emailData.from) {
+                    this.detectClient();
+                }
+            }
+
+            this.loadQuickReplies();
+
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+        }
+    },
+
+    bindEvents() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                if (tab) this.switchTab(tab);
+            });
+        });
+
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateEmailResponse());
+        }
+
+        const promptForm = document.getElementById('promptForm');
+        if (promptForm) {
+            promptForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.generateWithPrompt();
+            });
+        }
+
+        const insertBtn = document.getElementById('insertBtn');
+        if (insertBtn) {
+            insertBtn.addEventListener('click', () => this.insertResponse());
+        }
+
+        const copyBtn = document.getElementById('copyBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => this.copyResponse());
+        }
+
+        const chatForm = document.getElementById('chatForm');
+        if (chatForm) {
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.sendChatMessage();
+            });
+        }
+
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+        }
+
+        const taskForm = document.getElementById('taskForm');
+        if (taskForm) {
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.createTask();
+            });
+        }
+
+        const noteForm = document.getElementById('noteForm');
+        if (noteForm) {
+            noteForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.createNote();
+            });
+        }
+
+        const docUploadForm = document.getElementById('docUploadForm');
+        if (docUploadForm) {
+            docUploadForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.uploadDocument();
+            });
+        }
+
+        document.querySelectorAll('.mandant-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const clientId = card.dataset.clientId;
+                if (clientId) this.selectClient(clientId);
+            });
+        });
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => Auth.logout());
+        }
+    },
+
+    switchTab(tabName) {
+        this.state.currentTab = tabName;
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.dataset.tab === tabName);
+            content.style.display = content.dataset.tab === tabName ? 'block' : 'none';
+        });
+    },
+
+    updateClientDisplay() {
+        const client = this.state.currentClient;
+        if (!client) return;
+
+        document.querySelectorAll('.client-name').forEach(el => {
+            el.textContent = client.name || client.displayName || 'Kein Mandant';
+        });
+
+        document.querySelectorAll('.client-id').forEach(el => {
+            el.textContent = client.clientNumber || client.id || '';
+        });
+    },
+
+    updateEmailDisplay() {
+        const email = this.state.emailData;
+        if (!email) return;
+
+        document.querySelectorAll('.email-sender').forEach(el => {
+            el.textContent = email.fromName || email.from || 'Unbekannt';
+        });
+
+        document.querySelectorAll('.email-subject').forEach(el => {
+            el.textContent = email.subject || '(Kein Betreff)';
+        });
+    },
+
+    async detectClient() {
+        try {
+            const result = await API.detectClient({
+                senderEmail: this.state.emailData.from,
+                senderName: this.state.emailData.fromName,
+                subject: this.state.emailData.subject,
+                body: this.state.emailData.body?.substring(0, 1000)
+            });
+
+            if (result.success && result.data && result.data.clientId) {
+                const clientResult = await API.getClient(result.data.clientId);
+                if (clientResult.success && clientResult.data) {
+                    this.state.currentClient = clientResult.data;
+                    CONFIG.currentClient = clientResult.data;
+                    this.updateClientDisplay();
+                    this.showNotification('Mandant erkannt: ' + result.data.clientName);
+                }
+            }
+        } catch (error) {
+            console.log('Could not auto-detect client:', error);
+        }
+    },
+
+    async generateEmailResponse() {
+        if (this.state.isGenerating) return;
+
+        const email = this.state.emailData;
+        if (!email || !email.body) {
+            this.showError('Keine E-Mail geladen');
+            return;
+        }
+
+        this.state.isGenerating = true;
+        this.showGenerating(true);
+
+        try {
+            const result = await API.generateEmailResponse({
+                emailSubject: email.subject,
+                emailBody: email.body,
+                senderEmail: email.from,
+                senderName: email.fromName,
+                clientId: this.state.currentClient?.id
+            }, (progress) => {
+                if (progress.partialResponse) {
+                    this.updateResponsePreview(progress.partialResponse);
+                }
+            });
+
+            if (result.success && result.data) {
+                this.displayResponse(result.data);
+            } else {
+                throw new Error(result.error || 'Fehler bei der Generierung');
+            }
+        } catch (error) {
+            console.error('Email generation error:', error);
+            this.showError(error.message || 'Generierung fehlgeschlagen');
+        } finally {
+            this.state.isGenerating = false;
+            this.showGenerating(false);
+        }
+    },
+
+    async generateWithPrompt() {
+        const promptInput = document.getElementById('customPrompt');
+        if (!promptInput || !promptInput.value.trim()) {
+            return;
+        }
+
+        if (this.state.isGenerating) return;
+
+        const email = this.state.emailData;
+        this.state.isGenerating = true;
+        this.showGenerating(true);
+
+        try {
+            const result = await API.generateEmailResponse({
+                emailSubject: email?.subject || '',
+                emailBody: email?.body || '',
+                senderEmail: email?.from || '',
+                senderName: email?.fromName || '',
+                clientId: this.state.currentClient?.id,
+                customPrompt: promptInput.value.trim()
+            });
+
+            if (result.success && result.data) {
+                this.displayResponse(result.data);
+                this.closePromptPopup();
+            } else {
+                throw new Error(result.error || 'Fehler bei der Generierung');
+            }
+        } catch (error) {
+            console.error('Custom generation error:', error);
+            this.showError(error.message || 'Generierung fehlgeschlagen');
+        } finally {
+            this.state.isGenerating = false;
+            this.showGenerating(false);
+        }
+    },
+
+    displayResponse(data) {
+        const responseArea = document.getElementById('responseText');
+        const sourcesArea = document.getElementById('responseSources');
+
+        if (responseArea) {
+            responseArea.textContent = data.response || data.content || '';
+        }
+
+        if (sourcesArea && data.sources) {
+            sourcesArea.innerHTML = data.sources.map(src => `
+                <div class="source-item" onclick="openSourcePopup('${src.type}', '${src.title}', '${src.summary || ''}')">
+                    <span class="source-icon">${this.getSourceIcon(src.type)}</span>
+                    <span class="source-title">${src.title}</span>
+                </div>
+            `).join('');
+        }
+
+        const responseContainer = document.getElementById('responseContainer');
+        if (responseContainer) {
+            responseContainer.style.display = 'block';
+        }
+    },
+
+    getSourceIcon(type) {
+        const icons = {
+            document: '<svg>...</svg>',
+            email: '<svg>...</svg>',
+            law: '<svg>...</svg>'
+        };
+        return icons[type] || '';
+    },
+
+    async insertResponse() {
+        const responseArea = document.getElementById('responseText');
+        if (!responseArea || !responseArea.textContent) {
+            this.showError('Keine Antwort zum Einfügen');
+            return;
+        }
+
+        const success = await OfficeHelper.insertText(responseArea.textContent);
+        if (success) {
+            this.showSuccess('Antwort eingefügt');
+        } else {
+            this.copyResponse();
+        }
+    },
+
+    async copyResponse() {
+        const responseArea = document.getElementById('responseText');
+        if (!responseArea || !responseArea.textContent) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(responseArea.textContent);
+            this.showSuccess('In Zwischenablage kopiert');
+        } catch (error) {
+            console.error('Copy failed:', error);
+            this.showError('Kopieren fehlgeschlagen');
+        }
+    },
+
+    async sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        if (!input || !input.value.trim()) return;
+
+        const message = input.value.trim();
+        input.value = '';
+
+        this.addChatMessage('user', message);
+        this.showChatThinking(true);
+
+        try {
+            const result = await API.sendChatMessage({
+                message,
+                clientId: this.state.currentClient?.id,
+                attachmentIds: this.state.attachments.map(a => a.id)
+            }, (progress) => {
+                if (progress.partialResponse) {
+                    this.updateChatResponse(progress.partialResponse);
+                }
+            });
+
+            if (result.success && result.data) {
+                this.addChatMessage('assistant', result.data.response || result.data.content, result.data.sources);
+            } else {
+                throw new Error(result.error || 'Fehler bei der Anfrage');
+            }
+        } catch (error) {
+            console.error('Chat error:', error);
+            this.addChatMessage('error', error.message || 'Anfrage fehlgeschlagen');
+        } finally {
+            this.showChatThinking(false);
+            this.state.attachments = [];
+        }
+    },
+
+    addChatMessage(role, content, sources = null) {
+        const chatContainer = document.getElementById('chatMessages');
+        if (!chatContainer) return;
+
+        const messageEl = document.createElement('div');
+        messageEl.className = `chat-message ${role}`;
+        messageEl.innerHTML = `
+            <div class="message-content">${this.formatMessage(content)}</div>
+            ${sources ? this.formatSources(sources) : ''}
+        `;
+
+        chatContainer.appendChild(messageEl);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        this.state.chatMessages.push({ role, content, sources });
+    },
+
+    formatMessage(content) {
+        return content
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    },
+
+    formatSources(sources) {
+        if (!sources || sources.length === 0) return '';
+
+        return `
+            <div class="message-sources">
+                <span class="sources-label">Quellen:</span>
+                ${sources.map(src => `
+                    <span class="source-tag" onclick="openSourcePopup('${src.type}', '${src.title}', '${src.summary || ''}')">${src.title}</span>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    async handleFileUpload(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        for (const file of files) {
+            try {
+                const result = await API.uploadChatAttachment(
+                    file,
+                    '',
+                    this.state.currentClient?.id
+                );
+
+                if (result.success && result.data) {
+                    this.state.attachments.push({
+                        id: result.data.id,
+                        filename: result.data.filename,
+                        size: result.data.size
+                    });
+                    this.updateAttachmentDisplay();
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                this.showError(`Fehler beim Hochladen: ${file.name}`);
+            }
+        }
+
+        event.target.value = '';
+    },
+
+    updateAttachmentDisplay() {
+        const container = document.getElementById('attachmentsList');
+        if (!container) return;
+
+        container.innerHTML = this.state.attachments.map(att => `
+            <div class="attachment-item">
+                <span class="attachment-name">${att.filename}</span>
+                <button class="remove-attachment" onclick="App.removeAttachment('${att.id}')">&times;</button>
+            </div>
+        `).join('');
+    },
+
+    removeAttachment(id) {
+        this.state.attachments = this.state.attachments.filter(a => a.id !== id);
+        this.updateAttachmentDisplay();
+    },
+
+    async createTask() {
+        const titleInput = document.getElementById('taskTitle');
+        const descInput = document.getElementById('taskDescription');
+        const prioritySelect = document.getElementById('taskPriority');
+        const dueDateInput = document.getElementById('taskDueDate');
+        const assigneeSelect = document.getElementById('taskAssignee');
+
+        if (!titleInput || !titleInput.value.trim()) {
+            this.showError('Bitte geben Sie einen Titel ein');
+            return;
+        }
+
+        try {
+            const result = await API.createTask({
+                clientId: this.state.currentClient?.id,
+                title: titleInput.value.trim(),
+                description: descInput?.value || null,
+                priority: prioritySelect?.value || 'normal',
+                dueDate: dueDateInput?.value || null,
+                assignedToUserId: assigneeSelect?.value || null
+            });
+
+            if (result.success) {
+                this.showSuccess('Aufgabe erstellt');
+                this.closeTaskModal();
+                titleInput.value = '';
+                if (descInput) descInput.value = '';
+            } else {
+                throw new Error(result.error || 'Fehler beim Erstellen');
+            }
+        } catch (error) {
+            console.error('Task creation error:', error);
+            this.showError(error.message || 'Aufgabe konnte nicht erstellt werden');
+        }
+    },
+
+    async createNote() {
+        const contentInput = document.getElementById('noteContent');
+
+        if (!contentInput || !contentInput.value.trim()) {
+            this.showError('Bitte geben Sie eine Notiz ein');
+            return;
+        }
+
+        if (!this.state.currentClient?.id) {
+            this.showError('Kein Mandant ausgewählt');
+            return;
+        }
+
+        try {
+            const result = await API.createNote(
+                this.state.currentClient.id,
+                contentInput.value.trim()
+            );
+
+            if (result.success) {
+                this.showSuccess('Notiz erstellt');
+                this.closeNoteModal();
+                contentInput.value = '';
+            } else {
+                throw new Error(result.error || 'Fehler beim Erstellen');
+            }
+        } catch (error) {
+            console.error('Note creation error:', error);
+            this.showError(error.message || 'Notiz konnte nicht erstellt werden');
+        }
+    },
+
+    async uploadDocument() {
+        const fileInput = document.getElementById('docFileInput');
+        const folderSelect = document.getElementById('docFolder');
+
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            this.showError('Bitte wählen Sie eine Datei aus');
+            return;
+        }
+
+        if (!this.state.currentClient?.id) {
+            this.showError('Kein Mandant ausgewählt');
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        try {
+            const result = await API.uploadDocument(
+                file,
+                this.state.currentClient.id,
+                {
+                    documentType: folderSelect?.value || null
+                }
+            );
+
+            if (result.success) {
+                this.showSuccess('Dokument hochgeladen');
+                fileInput.value = '';
+            } else {
+                throw new Error(result.error || 'Fehler beim Hochladen');
+            }
+        } catch (error) {
+            console.error('Document upload error:', error);
+            this.showError(error.message || 'Dokument konnte nicht hochgeladen werden');
+        }
+    },
+
+    async loadQuickReplies() {
+        try {
+            const result = await API.getQuickReplies();
+            if (result.success && result.data) {
+                this.displayQuickReplies(result.data);
+            }
+        } catch (error) {
+            console.log('Could not load quick replies:', error);
+        }
+    },
+
+    displayQuickReplies(replies) {
+        const container = document.getElementById('quickReplies');
+        if (!container) return;
+
+        container.innerHTML = replies.map(reply => `
+            <button class="quick-reply-btn" onclick="App.useQuickReply('${reply.id}', '${reply.content.replace(/'/g, "\\'")}')">
+                ${reply.label}
+            </button>
+        `).join('');
+    },
+
+    async useQuickReply(id, content) {
+        const responseArea = document.getElementById('responseText');
+        if (responseArea) {
+            responseArea.textContent = content;
+        }
+
+        await OfficeHelper.insertText(content);
+    },
+
+    async selectClient(clientId) {
+        try {
+            const result = await API.getClient(clientId);
+            if (result.success && result.data) {
+                this.state.currentClient = result.data;
+                CONFIG.currentClient = result.data;
+                this.updateClientDisplay();
+                this.closeMandantPopup();
+            }
+        } catch (error) {
+            console.error('Error selecting client:', error);
+        }
+    },
+
+    // UI Helpers
+    showGenerating(show) {
+        const btn = document.getElementById('generateBtn');
+        const spinner = document.getElementById('generateSpinner');
+        if (btn) btn.disabled = show;
+        if (spinner) spinner.style.display = show ? 'block' : 'none';
+    },
+
+    showChatThinking(show) {
+        const indicator = document.getElementById('chatThinking');
+        if (indicator) indicator.style.display = show ? 'block' : 'none';
+    },
+
+    showSuccess(message) {
+        this.showNotification(message, 'success');
+    },
+
+    showError(message) {
+        this.showNotification(message, 'error');
+    },
+
+    showNotification(message, type = 'info') {
+        if (OfficeHelper.isOutlook()) {
+            OfficeHelper.showNotification(message, type === 'error' ? 'error' : 'informational');
+            return;
+        }
+
+        const container = document.getElementById('notifications');
+        if (container) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            container.appendChild(notification);
+
+            setTimeout(() => notification.remove(), 3000);
+        }
+    },
+
+    closePromptPopup() {
+        const popup = document.getElementById('promptPopup');
+        if (popup) popup.style.display = 'none';
+    },
+
+    closeTaskModal() {
+        const modal = document.getElementById('taskModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    closeNoteModal() {
+        const modal = document.getElementById('noteModal');
+        if (modal) modal.style.display = 'none';
+    },
+
+    closeMandantPopup() {
+        const popup = document.getElementById('mandantPopup');
+        if (popup) popup.style.display = 'none';
+    },
+
+    updateResponsePreview(text) {
+        const responseArea = document.getElementById('responseText');
+        if (responseArea) {
+            responseArea.textContent = text;
+        }
+    },
+
+    updateChatResponse(text) {
+        const messages = document.querySelectorAll('.chat-message.assistant');
+        if (messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            const content = lastMessage.querySelector('.message-content');
+            if (content) {
+                content.innerHTML = this.formatMessage(text);
+            }
+        }
+    }
+};
+
+function initializeApp() {
+    App.init();
+}
+
+// Auto-initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof Office !== 'undefined') {
+        Office.onReady(() => {
+            App.init();
+        });
+    } else {
+        App.init();
+    }
+});
     </script>
 </body>
 </html>
