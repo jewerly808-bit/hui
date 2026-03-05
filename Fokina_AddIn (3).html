@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fokina – Auftragsassistent</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js" type="text/javascript"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --ink:       #0D2137;
+      --ink-deep:  #071624;
+      --ink-mid:   #1A3A55;
+      --ink-light: rgba(13,33,55,0.08);
+      --ink-xlight:rgba(13,33,55,0.04);
+      --press:     #0D2137;
+      --press-hover:#1A3A55;
+      --press-light:rgba(13,33,55,0.08);
+      --bg:        #FFFFFF;
+      --bg-2:      #F7F9FB;
+      --bg-3:      #EFF2F5;
+      --text:      #0D2137;
+      --text-2:    #4A6277;
+      --text-3:    #8BA0B4;
+      --border:    #DDE4EC;
+      --border-light:#EBF0F5;
+      --green:     #16A34A;
+      --green-l:   rgba(22,163,74,0.1);
+      --amber:     #D97706;
+      --amber-l:   rgba(217,119,6,0.1);
+      --red:       #DC2626;
+      --red-l:     rgba(220,38,38,0.1);
+      --blue:      #2563EB;
+      --blue-l:    rgba(37,99,235,0.1);
+      --sh-xs:     0 1px 2px rgba(13,33,55,0.06);
+      --sh-sm:     0 2px 6px rgba(13,33,55,0.08);
+      --sh:        0 4px 12px rgba(13,33,55,0.1);
+      --sh-md:     0 8px 24px rgba(13,33,55,0.12);
+      --sh-lg:     0 16px 48px rgba(13,33,55,0.16);
+      --r:         10px;
+      --r-sm:      7px;
+      --r-lg:      14px;
+      --t:         all .18s cubic-bezier(.4,0,.2,1);
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+    /* ════════════════════════════════
+       LOGIN
+    ════════════════════════════════ */
+    .login-wrap {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--ink-deep);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .login-wrap.gone { display: none; }
+
+    .login-bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(13,33,55,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13,33,55,0.05) 1px, transparent 1px);
+      background-size: 32px 32px;
+      animation: gridDrift 20s linear infinite;
+    }
+    @keyframes gridDrift { from{background-position:0 0} to{background-position:32px 32px} }
+
+    .login-blob {
+      position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.18;
+    }
+    .login-blob-1 {
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, #0D2137, transparent);
+      top: -80px; right: -60px;
+      animation: blobMove 15s ease-in-out infinite;
+    }
+    .login-blob-2 {
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, #2563EB, transparent);
+      bottom: -40px; left: -40px;
+      animation: blobMove 18s ease-in-out infinite reverse;
+    }
+    @keyframes blobMove {
+      0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-30px)}
+    }
+
+    .login-card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 320px;
+      animation: loginIn .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes loginIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+    .login-logo-area {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin-bottom: 32px;
+    }
+    .login-logo-icon {
+      width: 42px; height: 42px;
+      background: var(--ink);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 20px rgba(13,33,55,.35);
+    }
+    .login-logo-icon svg { width: 22px; height: 22px; color: #fff; }
+    .login-logo-name { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+
+    .login-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(13,33,55,0.1); border: 1px solid rgba(13,33,55,0.25);
+      padding: 4px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600; color: #8BA0B4;
+      margin-bottom: 14px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+
+    .login-title {
+      font-size: 20px; font-weight: 700; color: #fff;
+      letter-spacing: -0.02em; margin-bottom: 5px;
+    }
+    .login-sub { font-size: 12.5px; color: rgba(255,255,255,0.45); margin-bottom: 28px; }
+
+    .login-field { margin-bottom: 14px; }
+    .login-label { display: block; font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,0.55); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .login-input {
+      width: 100%; padding: 11px 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--r-sm); color: #fff;
+      font-size: 13.5px; font-family: inherit;
+      transition: var(--t);
+      outline: none;
+    }
+    .login-input::placeholder { color: rgba(255,255,255,0.25); }
+    .login-input:focus { border-color: var(--press); background: rgba(255,255,255,0.09); box-shadow: 0 0 0 3px rgba(13,33,55,0.1); }
+
+    .login-btn {
+      width: 100%; padding: 12px;
+      background: var(--ink);
+      color: #fff; border: none; border-radius: var(--r-sm);
+      font-size: 14px; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: var(--t); margin-top: 4px;
+      box-shadow: 0 4px 16px rgba(13,33,55,.3);
+    }
+    .login-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(13,33,55,.4); }
+    .login-btn:active { transform: translateY(0); }
+
+    .login-footer { text-align: center; margin-top: 20px; font-size: 11.5px; color: rgba(255,255,255,0.25); }
+
+    /* ════════════════════════════════
+       MAIN APP SHELL
+    ════════════════════════════════ */
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Header */
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 14px 11px 16px;
+      background: var(--ink);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    .header-logo { display: flex; align-items: center; gap: 9px; }
+    .header-icon {
+      width: 30px; height: 30px;
+      background: var(--ink);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .header-icon svg { width: 16px; height: 16px; color: #fff; }
+    .header-name { font-size: 14.5px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+    .header-name span { color: rgba(255,255,255,0.4); font-weight: 400; }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .header-status {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--green-l); border: 1px solid rgba(22,163,74,0.25);
+      padding: 4px 9px; border-radius: 20px;
+      font-size: 11px; font-weight: 500; color: #4ADE80;
+    }
+    .header-dot { width: 6px; height: 6px; background: #4ADE80; border-radius: 50%; animation: pulse 1.8s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .header-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #0D2137, #1A3A55);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff; cursor: pointer;
+    }
+
+    /* Tab Nav */
+    .tab-nav {
+      display: flex; background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 11px 6px;
+      background: none; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: var(--text-3);
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      transition: var(--t); position: relative;
+    }
+    .tab-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .tab-btn.active { color: var(--press); border-bottom-color: var(--press); font-weight: 600; }
+    .tab-btn:hover:not(.active) { color: var(--text-2); background: var(--border-light); }
+
+    .tab-badge {
+      background: var(--press); color: #fff;
+      font-size: 9.5px; font-weight: 700;
+      padding: 1px 5px; border-radius: 10px;
+      min-width: 16px; text-align: center;
+    }
+
+    /* Main content */
+    .tab-content { display: none; flex: 1; overflow-y: auto; flex-direction: column; }
+    .tab-content.active { display: flex; }
+
+    /* ════════════════════════════════
+       ANALYSE TAB
+    ════════════════════════════════ */
+    .analyse-wrap { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* Email Preview Card */
+    .email-card {
+      background: var(--ink-xlight);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .email-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px 9px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .email-from { display: flex; align-items: center; gap: 8px; }
+    .email-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #1A3A55, #0D2137);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10.5px; font-weight: 700; color: rgba(255,255,255,0.8);
+      flex-shrink: 0;
+    }
+    .email-meta { display: flex; flex-direction: column; gap: 0; }
+    .email-name { font-size: 12px; font-weight: 600; color: var(--text); }
+    .email-addr { font-size: 10.5px; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; }
+    .email-time { font-size: 10.5px; color: var(--text-3); flex-shrink: 0; }
+    .email-subject { font-size: 11.5px; font-weight: 600; color: var(--text); padding: 8px 12px 4px; }
+    .email-body {
+      font-size: 11.5px; color: var(--text-2); padding: 0 12px 10px;
+      line-height: 1.6; max-height: 72px; overflow: hidden;
+      position: relative;
+    }
+    .email-body-fade {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
+      background: linear-gradient(transparent, var(--bg-2));
+    }
+    .email-expand {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 6px 12px;
+      font-size: 11px; color: var(--text-3); cursor: pointer;
+      border-top: 1px solid var(--border-light);
+      background: none; border-left: none; border-right: none; border-bottom: none;
+      width: 100%; font-family: inherit; transition: var(--t);
+    }
+    .email-expand:hover { color: var(--text-2); background: var(--border-light); }
+    .email-expand svg { width: 12px; height: 12px; transition: var(--t); }
+    .email-expanded .email-body { max-height: none; }
+    .email-expanded .email-expand svg { transform: rotate(180deg); }
+
+    /* AI Summary */
+    .ai-summary {
+      background: linear-gradient(135deg, rgba(13,33,55,0.04), rgba(13,33,55,0.03));
+      border: 1px solid rgba(13,33,55,0.1);
+      border-radius: var(--r);
+      padding: 11px 13px;
+    }
+    .ai-summary-header {
+      display: flex; align-items: center; gap: 7px;
+      margin-bottom: 7px;
+    }
+    .ai-chip {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--press-light); border: 1px solid rgba(13,33,55,0.15);
+      padding: 3px 8px; border-radius: 20px;
+      font-size: 10.5px; font-weight: 600; color: var(--press);
+      letter-spacing: 0.03em;
+    }
+    .ai-chip-dot { width: 5px; height: 5px; background: var(--press); border-radius: 50%; animation: pulse 1.5s infinite; }
+    .ai-summary-text { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+
+    /* Product Type Selector */
+    .section-label {
+      font-size: 10.5px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 7px;
+    }
+
+    .product-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--ink); color: #fff;
+      padding: 8px 13px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: var(--t); border: none; font-family: inherit;
+      box-shadow: var(--sh-sm);
+    }
+    .product-chip:hover { background: var(--ink-mid); transform: translateY(-1px); box-shadow: var(--sh); }
+    .product-chip svg { width: 14px; height: 14px; opacity: 0.7; }
+    .product-chip-icon { width: 16px; height: 16px; display:flex; align-items:center; justify-content:center; opacity:.85; }
+    .product-chip-icon svg { width:16px; height:16px; }
+
+    .product-confidence {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--green-l); border: 1px solid rgba(22,163,74,0.2);
+      padding: 3px 8px; border-radius: 20px;
+      font-size: 10.5px; font-weight: 600; color: var(--green);
+      margin-left: 6px;
+    }
+
+    /* Parameters List */
+    .params-list { display: flex; flex-direction: column; gap: 5px; }
+
+    .param-row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 9px 11px;
+      transition: var(--t); cursor: pointer;
+    }
+    .param-row:hover { border-color: var(--press); background: rgba(13,33,55,0.025); box-shadow: var(--sh-xs); }
+    .param-row.missing { background: rgba(220,38,38,0.04); border-color: rgba(220,38,38,0.2); }
+    .param-row.corrected { background: rgba(37,99,235,0.04); border-color: rgba(37,99,235,0.2); }
+
+    .param-icon {
+      width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-3);
+    }
+    .param-icon svg { width: 14px; height: 14px; color: var(--text-3); }
+    .param-icon.ok { background: var(--green-l); }
+    .param-icon.ok svg { color: var(--green); }
+    .param-icon.warn { background: var(--amber-l); }
+    .param-icon.warn svg { color: var(--amber); }
+    .param-icon.miss { background: var(--red-l); }
+    .param-icon.miss svg { color: var(--red); }
+    .param-icon.edit { background: var(--blue-l); }
+    .param-icon.edit svg { color: var(--blue); }
+
+    .param-body { flex: 1; min-width: 0; }
+    .param-name { font-size: 11px; color: var(--text-3); font-weight: 500; }
+    .param-value { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .param-value.missing { color: var(--red); font-weight: 500; font-style: italic; }
+
+    .param-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+
+    .status-label {
+      font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+    }
+    .status-ok     { background: var(--green-l); color: var(--green); }
+    .status-warn   { background: var(--amber-l); color: var(--amber); }
+    .status-miss   { background: var(--red-l);   color: var(--red); }
+    .status-manual { background: var(--amber-l); color: var(--amber); }
+
+    .param-edit-btn {
+      width: 22px; height: 22px; border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-3); transition: var(--t);
+    }
+    .param-edit-btn:hover { background: var(--border); color: var(--text); }
+    .param-edit-btn svg { width: 12px; height: 12px; }
+
+    /* CTA Row */
+    .cta-row {
+      display: flex; gap: 7px; margin-top: 4px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 14px; border-radius: var(--r-sm);
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      border: none; cursor: pointer; transition: var(--t);
+    }
+    .btn svg { width: 14px; height: 14px; }
+    .btn-primary {
+      background: var(--ink);
+      color: #fff; flex: 1;
+      box-shadow: 0 3px 12px rgba(13,33,55,.25);
+      justify-content: center;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(13,33,55,.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary {
+      background: var(--bg-3); color: var(--text-2); border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); color: var(--text); }
+    .btn-ghost {
+      background: none; color: var(--text-3); border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--bg-2); color: var(--text-2); }
+    .btn-erp {
+      background: linear-gradient(135deg, var(--ink), var(--ink-mid));
+      color: #fff; flex: 1;
+      box-shadow: 0 3px 12px rgba(13,33,55,.25);
+      justify-content: center;
+    }
+    .btn-erp:hover { transform: translateY(-1px); box-shadow: 0 5px 18px rgba(13,33,55,.35); }
+    .btn-danger {
+      background: var(--red-l); color: var(--red); border: 1px solid rgba(220,38,38,0.15);
+    }
+    .btn-danger:hover { background: rgba(220,38,38,0.15); }
+
+    /* ════════════════════════════════
+       AUFTRAG TAB
+    ════════════════════════════════ */
+    .auftrag-wrap { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+    .order-status-bar {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--amber-l); border: 1px solid rgba(217,119,6,0.2);
+      border-radius: var(--r-sm); padding: 9px 12px;
+    }
+    .order-status-bar svg { width: 15px; height: 15px; color: var(--amber); flex-shrink: 0; }
+    .order-status-text { font-size: 11.5px; font-weight: 500; color: var(--amber); }
+
+    .order-status-bar.success {
+      background: var(--green-l); border-color: rgba(22,163,74,0.2);
+    }
+    .order-status-bar.success svg { color: var(--green); }
+    .order-status-bar.success .order-status-text { color: var(--green); }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-label {
+      font-size: 10.5px; font-weight: 700; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .field-input {
+      padding: 9px 11px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); color: var(--text);
+      font-size: 13px; font-family: 'IBM Plex Sans', inherit;
+      transition: var(--t); outline: none; width: 100%;
+    }
+    .field-input:focus { border-color: var(--press); background: var(--bg); box-shadow: 0 0 0 3px var(--press-light); }
+    .field-input::placeholder { color: var(--text-3); }
+    .field-select {
+      padding: 9px 11px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); color: var(--text);
+      font-size: 13px; font-family: inherit;
+      transition: var(--t); outline: none; width: 100%;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238BA0B4' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    .field-select:focus { border-color: var(--press); box-shadow: 0 0 0 3px var(--press-light); }
+    .field-textarea {
+      padding: 9px 11px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); color: var(--text);
+      font-size: 13px; font-family: inherit;
+      transition: var(--t); outline: none; width: 100%;
+      resize: vertical; min-height: 72px;
+    }
+    .field-textarea:focus { border-color: var(--press); box-shadow: 0 0 0 3px var(--press-light); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .section-card {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+    }
+    .section-card-header {
+      padding: 9px 12px 8px;
+      background: var(--border-light);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 7px;
+    }
+    .section-card-header svg { width: 14px; height: 14px; color: var(--text-3); }
+    .section-card-title { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .section-card-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* Params summary in Auftrag */
+    .params-summary { display: flex; flex-direction: column; gap: 4px; }
+    .ps-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 8px; border-radius: 6px;
+    }
+    .ps-row:nth-child(odd) { background: var(--bg-3); }
+    .ps-key { font-size: 11.5px; color: var(--text-2); }
+    .ps-val { font-size: 11.5px; font-weight: 600; color: var(--text); font-family: 'IBM Plex Mono', monospace; }
+
+    .erp-info {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--ink-xlight); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 10px 12px;
+      margin-bottom: 2px;
+    }
+    .erp-info svg { width: 15px; height: 15px; color: var(--text-3); flex-shrink: 0; }
+    .erp-info-text { font-size: 11.5px; color: var(--text-2); }
+    .erp-info-val { font-weight: 600; color: var(--text); }
+
+    /* ERP Success */
+    .erp-success {
+      display: none; flex-direction: column; align-items: center;
+      padding: 32px 16px; text-align: center; gap: 12px;
+    }
+    .erp-success.show { display: flex; animation: fadeIn .4s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .erp-success-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--green-l); border: 2px solid rgba(22,163,74,0.25);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .erp-success-icon svg { width: 26px; height: 26px; color: var(--green); }
+    .erp-success-title { font-size: 16px; font-weight: 700; color: var(--text); }
+    .erp-success-sub { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+    .erp-order-no {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px; font-weight: 600;
+      background: var(--bg-3); border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 6px; color: var(--text);
+    }
+
+    /* ════════════════════════════════
+       VERLAUF TAB
+    ════════════════════════════════ */
+    .verlauf-wrap { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+    .verlauf-item {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+      transition: var(--t); cursor: pointer;
+    }
+    .verlauf-item:hover { border-color: var(--press); box-shadow: var(--sh-xs); }
+
+    .verlauf-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+    }
+    .verlauf-left { display: flex; align-items: center; gap: 9px; }
+    .verlauf-product-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .verlauf-product-icon svg { width: 16px; height: 16px; }
+    .verlauf-info { display: flex; flex-direction: column; gap: 1px; }
+    .verlauf-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+    .verlauf-customer { font-size: 11px; color: var(--text-3); }
+    .verlauf-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .verlauf-date { font-size: 10.5px; color: var(--text-3); }
+    .verlauf-status {
+      font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+    }
+    .vs-done { background: var(--green-l); color: var(--green); }
+    .vs-pending { background: var(--amber-l); color: var(--amber); }
+    .vs-draft { background: var(--blue-l); color: var(--blue); }
+
+    .verlauf-summary {
+      font-size: 11.5px; color: var(--text-2); line-height: 1.6;
+      padding: 0 12px 10px; border-top: 1px solid var(--border-light);
+      padding-top: 8px;
+    }
+    .verlauf-tags {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 0 12px 10px;
+    }
+    .vtag {
+      font-size: 10px; font-weight: 500; color: var(--text-3);
+      background: var(--bg-3); border: 1px solid var(--border);
+      padding: 2px 7px; border-radius: 5px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* ════════════════════════════════
+       MODALS
+    ════════════════════════════════ */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 5000;
+      background: rgba(13,33,55,0.55);
+      backdrop-filter: blur(4px);
+      display: none; align-items: flex-end; padding: 0;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      width: 100%; background: var(--bg);
+      border-radius: 18px 18px 0 0;
+      box-shadow: var(--sh-lg);
+      animation: modalUp .28s cubic-bezier(.34,1.2,.64,1);
+      max-height: 80vh; overflow-y: auto;
+    }
+    @keyframes modalUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 12px auto 4px;
+    }
+    .modal-header {
+      padding: 14px 16px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bg-3); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-2); transition: var(--t);
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-close svg { width: 14px; height: 14px; }
+    .modal-body { padding: 16px; }
+    .modal-footer {
+      padding: 12px 16px; border-top: 1px solid var(--border-light);
+      display: flex; gap: 8px;
+    }
+    .modal-footer .btn { flex: 1; justify-content: center; }
+
+    /* Product selector grid */
+    .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .product-option {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 14px 10px; border-radius: var(--r);
+      border: 2px solid var(--border);
+      cursor: pointer; transition: var(--t);
+      background: var(--bg-2);
+    }
+    .product-option:hover { border-color: var(--ink-mid); background: var(--ink-xlight); }
+    .product-option.selected { border-color: var(--ink); background: var(--ink-xlight); }
+    .product-option-icon { width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; border-radius: 8px; background: var(--bg-3); }
+    .product-option-icon svg { width: 18px; height: 18px; color: var(--ink-mid); }
+    .product-option.selected .product-option-icon { background: var(--press-light); }
+    .product-option.selected .product-option-icon svg { color: var(--press); }
+    .product-option-name { font-size: 12px; font-weight: 600; color: var(--text); text-align: center; }
+    .product-option-count { font-size: 10.5px; color: var(--text-3); }
+
+    /* Parameter edit modal */
+    .param-edit-header-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+    }
+    .param-edit-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: var(--press-light); border: 1px solid rgba(13,33,55,0.15);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .param-edit-icon svg { width: 18px; height: 18px; color: var(--press); }
+    .param-edit-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .param-edit-type { font-size: 11.5px; color: var(--text-3); }
+
+    .options-list { display: flex; flex-direction: column; gap: 5px; }
+    .option-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 10px 12px; border-radius: var(--r-sm);
+      border: 1.5px solid var(--border);
+      cursor: pointer; transition: var(--t);
+      background: var(--bg-2);
+    }
+    .option-item:hover { border-color: var(--press); background: var(--press-light); }
+    .option-item.selected { border-color: var(--press); background: var(--press-light); }
+    .option-radio {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: var(--t);
+    }
+    .option-item.selected .option-radio { border-color: var(--press); background: var(--press); }
+    .option-item.selected .option-radio::after {
+      content: ''; width: 6px; height: 6px; background: #fff; border-radius: 50%;
+    }
+    .option-label { font-size: 13px; font-weight: 500; color: var(--text); }
+
+    /* ERP Loading */
+    .erp-loading {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 28px 16px; text-align: center; gap: 14px;
+    }
+    .erp-spinner {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid var(--border);
+      border-top-color: var(--press);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .erp-loading-text { font-size: 13.5px; font-weight: 600; color: var(--text); }
+    .erp-loading-sub { font-size: 11.5px; color: var(--text-3); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: #fff;
+      padding: 9px 16px; border-radius: 8px;
+      font-size: 12.5px; font-weight: 500;
+      box-shadow: var(--sh-md); z-index: 9000;
+      display: none; align-items: center; gap: 7px; white-space: nowrap;
+    }
+    .toast.show { display: flex; animation: toastIn .25s ease; }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    .toast svg { width: 14px; height: 14px; }
+    .toast.success { background: var(--green); }
+    .toast.warn { background: var(--amber); }
+    .toast.error { background: var(--red); }
+
+
+    /* ════════════════════════════════
+       REPLY TAB
+    ════════════════════════════════ */
+    #tab-verlauf { flex-direction: column; }
+
+    .reply-wrap {
+      flex: 1; overflow-y: auto;
+      padding: 12px; display: flex; flex-direction: column; gap: 10px;
+      padding-bottom: 4px;
+    }
+
+    .reply-header-row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .reply-recipient { font-size: 11.5px; color: var(--text-3); }
+    .reply-regen-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 9px; font-size: 11.5px; font-weight: 500;
+      color: var(--text-2); cursor: pointer; font-family: inherit;
+      transition: var(--t);
+    }
+    .reply-regen-btn:hover { background: var(--bg-3); color: var(--text); }
+    .reply-regen-btn svg { width: 12px; height: 12px; }
+    .reply-regen-btn.spinning svg { animation: spin .7s linear infinite; }
+
+    .quick-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .quick-chip {
+      padding: 5px 10px; background: var(--bg-2);
+      border: 1px solid var(--border); border-radius: 20px;
+      font-size: 11.5px; font-weight: 500; color: var(--text-2);
+      cursor: pointer; font-family: inherit; transition: var(--t);
+    }
+    .quick-chip:hover { background: var(--ink-xlight); border-color: var(--ink-mid); color: var(--text); }
+
+    .tone-row { display: flex; align-items: center; gap: 10px; }
+    .tone-chips { display: flex; gap: 4px; }
+    .tone-chip {
+      padding: 4px 10px; background: var(--bg-2);
+      border: 1px solid var(--border); border-radius: 6px;
+      font-size: 11.5px; font-weight: 500; color: var(--text-2);
+      cursor: pointer; font-family: inherit; transition: var(--t);
+    }
+    .tone-chip:hover { background: var(--bg-3); }
+    .tone-chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    .reply-textarea-wrap { flex: 1; position: relative; min-height: 180px; }
+    .reply-textarea {
+      width: 100%; height: 100%; min-height: 220px;
+      padding: 11px 12px 28px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r); color: var(--text);
+      font-size: 12.5px; font-family: 'IBM Plex Sans', inherit;
+      line-height: 1.65; resize: none; outline: none;
+      transition: var(--t);
+    }
+    .reply-textarea:focus { border-color: var(--press); box-shadow: 0 0 0 3px var(--press-light); }
+    .reply-char-count {
+      position: absolute; bottom: 8px; right: 10px;
+      font-size: 10px; color: var(--text-3);
+      font-family: 'IBM Plex Mono', monospace;
+      pointer-events: none;
+    }
+
+    .reply-adjust-wrap {
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: var(--r); overflow: hidden;
+    }
+    .reply-adjust-input {
+      width: 100%; padding: 10px 12px;
+      background: none; border: none; outline: none;
+      font-size: 12.5px; font-family: inherit; color: var(--text);
+      resize: none; min-height: 68px; line-height: 1.55;
+    }
+    .reply-adjust-input::placeholder { color: var(--text-3); }
+    .reply-adjust-actions {
+      display: flex; justify-content: flex-end; gap: 6px;
+      padding: 8px 10px; border-top: 1px solid var(--border-light);
+      background: var(--bg-3);
+    }
+
+    .reply-footer {
+      display: flex; align-items: center; gap: 7px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--border-light);
+      background: var(--bg); flex-shrink: 0;
+    }
+  
+    .flex-row { display: flex; align-items: center; }
+    .gap-6 { gap: 6px; }
+    .mt-4 { margin-top: 4px; }
+    .mt-8 { margin-top: 8px; }
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 32px 16px; text-align: center; gap: 8px;
+    }
+    .empty-icon { font-size: 32px; opacity: 0.4; }
+    .empty-title { font-size: 13.5px; font-weight: 600; color: var(--text-2); }
+    .empty-sub { font-size: 11.5px; color: var(--text-3); }
+
+    .divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     LOGIN
+═══════════════════════════════════ -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-bg-grid"></div>
+  <div class="login-blob login-blob-1"></div>
+  <div class="login-blob login-blob-2"></div>
+
+  <div class="login-card">
+    <div class="login-logo-area">
+      <span class="login-logo-name">Fokina</span>
+    </div>
+
+    <div style="text-align:center;margin-bottom:24px;">
+      <div class="login-badge">
+        <span>●</span>
+        Auftragsassistent
+      </div>
+      <div class="login-title">Anmelden</div>
+      <div class="login-sub">KI-gestützte Auftragserfassung für Outlook</div>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label">E-Mail</label>
+      <input class="login-input" type="email" placeholder="name@tokina.de" id="loginEmail" value="m.weber@tokina.de">
+    </div>
+    <div class="login-field">
+      <label class="login-label">Passwort</label>
+      <input class="login-input" type="password" placeholder="••••••••" id="loginPw" value="••••••••">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Anmelden</button>
+    <div class="login-footer">Fokina Druckerei GmbH &bull; Add-in v2.1</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     MAIN APP
+═══════════════════════════════════ -->
+<div class="app" id="mainApp" style="display:none;">
+
+  <!-- Header -->
+
+  <!-- Tab Nav -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('analyse',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      Analyse
+    </button>
+    <button class="tab-btn" onclick="switchTab('auftrag',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119.293 7V19a2 2 0 01-2 2z"/>
+      </svg>
+      Auftrag
+    </button>
+    <button class="tab-btn" onclick="switchTab('verlauf',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+      </svg>
+      Antwort
+    </button>
+  </div>
+
+  <!-- ─── ANALYSE TAB ─── -->
+  <div class="tab-content active" id="tab-analyse">
+    <div class="analyse-wrap">
+
+      <!-- Email Preview -->
+      <div class="email-card" id="emailCard">
+        <div class="email-card-header">
+          <div class="email-from">
+            <div class="email-avatar">TF</div>
+            <div class="email-meta">
+              <div class="email-name">Thomas Fischer</div>
+              <div class="email-addr">t.fischer@buchverlag-nord.de</div>
+            </div>
+          </div>
+          <div class="email-time">Heute, 09:47</div>
+        </div>
+
+      </div>
+
+      <!-- AI Summary -->
+      <div class="ai-summary">
+        <div class="ai-summary-header">
+          <div class="ai-chip">
+            <div class="ai-chip-dot"></div>
+            KI-Analyse
+          </div>
+        </div>
+        <div class="ai-summary-text">
+          Kunde fragt nach <strong>1.500 Hardcover-Katalogen</strong> (DIN A5) für Herbst 2025. 
+          Hochwertige Ausstattung mit Fadenheftung und Veredelung. Lieferfrist KW 38. 
+          Alle Kernparameter erkannt — 1 Angabe unklar.
+        </div>
+      </div>
+
+      <!-- Product Type -->
+      <div>
+        <div class="section-label">Erkanntes Produkt</div>
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+          <button class="product-chip" onclick="openProductModal()">
+            <span class="product-chip-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg></span>
+            Hardcover-Katalog
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Parameters -->
+      <div>
+        <div class="section-label">Extrahierte Parameter</div>
+        <div class="params-list" id="paramsList">
+          <!-- rendered by JS -->
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="cta-row">
+        <button class="btn btn-ghost" onclick="reanalyse()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Neu analysieren
+        </button>
+        <button class="btn btn-primary" onclick="createOrder()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Auftrag erstellen
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ─── AUFTRAG TAB ─── -->
+  <div class="tab-content" id="tab-auftrag">
+    <div class="auftrag-wrap" id="auftragForm">
+
+      <div class="order-status-bar" id="orderStatusBar">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span class="order-status-text">Bitte alle Parameter prüfen, bevor Sie den Auftrag ins ERP laden.</span>
+      </div>
+
+      <!-- Kundendaten -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          <span class="section-card-title">Kundendaten</span>
+        </div>
+        <div class="section-card-body">
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Kunde</label>
+              <input class="field-input" value="Buchverlag Nord GmbH" id="erpKunde">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Kundennummer</label>
+              <input class="field-input" value="KD-40712" id="erpKundennr">
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Ansprechpartner</label>
+            <input class="field-input" value="Thomas Fischer" id="erpKontakt">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Wunschlieferdatum</label>
+            <input class="field-input" type="text" value="KW 38 / 15.09.2025" id="erpLieferdatum">
+          </div>
+        </div>
+      </div>
+
+      <!-- Auftragsparameter -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/>
+          </svg>
+          <span class="section-card-title">Auftragsparameter — Hardcover-Katalog</span>
+        </div>
+        <div class="section-card-body">
+          <div class="params-summary" id="paramsSummary">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ERP Details -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+          </svg>
+          <span class="section-card-title">ERP-Ziel</span>
+        </div>
+        <div class="section-card-body">
+          <div class="erp-info">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+            </svg>
+            <div class="erp-info-text">ERP-System: <span class="erp-info-val">Multiflow (Produktion)</span></div>
+          </div>
+          <div class="form-row">
+            <div class="field-group">
+              <label class="field-label">Auftragstyp</label>
+              <select class="field-select" id="erpTyp">
+                <option selected>Druckauftrag</option>
+                <option>Weiterverarbeitung</option>
+                <option>Digitalauftrag</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Priorität</label>
+              <select class="field-select" id="erpPrio">
+                <option>Normal</option>
+                <option selected>Hoch</option>
+                <option>Dringend</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Interne Notiz</label>
+            <textarea class="field-textarea" id="erpNotiz" placeholder="Besonderheiten, Rückfragen...">Spotlack nur auf Logo — bitte mit Vorstufe abstimmen.</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ERP Button -->
+      <div class="cta-row">
+        <button class="btn btn-ghost" onclick="switchTab('analyse', document.querySelectorAll('.tab-btn')[0])">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+          Zurück
+        </button>
+        <button class="btn btn-erp" onclick="launchErp()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          In ERP laden
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ERP Loading / Success (hidden by default) -->
+    <div class="erp-loading" id="erpLoading" style="display:none;">
+      <div class="erp-spinner"></div>
+      <div class="erp-loading-text">Auftrag wird übertragen…</div>
+      <div class="erp-loading-sub">Verbindung zu Multiflow</div>
+    </div>
+
+    <div class="erp-success" id="erpSuccess">
+      <div class="erp-success-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <div class="erp-success-title">Auftrag erfolgreich angelegt</div>
+      <div class="erp-success-sub">Der Druckauftrag wurde in Multiflow erstellt und der Vorstufe zugewiesen.</div>
+      <div class="erp-order-no" id="erpOrderNo">Auftragsnr.: DA-2025-09183</div>
+      <button class="btn btn-secondary" onclick="resetErp()" style="width:100%;justify-content:center;margin-top:4px;">
+        Neue E-Mail analysieren
+      </button>
+    </div>
+  </div>
+
+  <!-- ─── ANTWORT TAB ─── -->
+  <div class="tab-content" id="tab-verlauf">
+    <div class="reply-wrap">
+
+      <!-- Header row -->
+      <div class="reply-header-row">
+        <div class="flex-row gap-6">
+          <div class="ai-chip">
+            <div class="ai-chip-dot"></div>
+            KI-Entwurf
+          </div>
+          <span class="reply-recipient">an Thomas Fischer</span>
+        </div>
+        <button class="reply-regen-btn" onclick="regenReply()" title="Neu generieren">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Neu generieren
+        </button>
+      </div>
+
+      <!-- Schnellantworten -->
+      <div>
+        <div class="section-label">Schnellantwort</div>
+        <div class="quick-chips">
+          <button class="quick-chip" onclick="useQuickReply(this)">Angebot anfordern</button>
+          <button class="quick-chip" onclick="useQuickReply(this)">Rückfrage: Druckdaten fehlen</button>
+          <button class="quick-chip" onclick="useQuickReply(this)">Liefertermin bestätigen</button>
+          <button class="quick-chip" onclick="useQuickReply(this)">Auftrag bestätigen</button>
+        </div>
+      </div>
+
+      <!-- Ton -->
+      <div class="tone-row">
+        <span class="section-label" style="margin:0;">Ton</span>
+        <div class="tone-chips">
+          <button class="tone-chip active" onclick="setTone(this,'formell')">Formell</button>
+          <button class="tone-chip" onclick="setTone(this,'freundlich')">Freundlich</button>
+          <button class="tone-chip" onclick="setTone(this,'kurz')">Kurz & knapp</button>
+        </div>
+      </div>
+
+      <!-- Textarea -->
+      <div class="reply-textarea-wrap">
+        <textarea class="reply-textarea" id="replyText">Sehr geehrter Herr Fischer,
+
+vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen ein Angebot für Ihren Hardcover-Katalog zur Herbstsaison 2025.
+
+Auf Basis Ihrer Angaben kalkulieren wir wie folgt:
+
+Format: DIN A5 (148 x 210 mm)
+Auflage: 1.500 Exemplare
+Umfang: 128 Seiten, 4/4-farbig
+Papier Inhalt: 135 g/m² Bilderdruckpapier
+Umschlag: 300 g/m², 4/4-farbig, Hochglanz-Laminierung + Spotlack
+Bindung: Fadenheftung
+
+Das vollständige Angebot erhalten Sie in den nächsten 24 Stunden per E-Mail.
+
+Für Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Fokina Druckerei GmbH</textarea>
+        <div class="reply-char-count" id="replyCharCount">0 Zeichen</div>
+      </div>
+
+      <!-- Anpassen-Eingabe -->
+      <div class="reply-adjust-wrap" id="replyAdjustWrap" style="display:none;">
+        <textarea class="reply-adjust-input" id="replyAdjustInput"
+          placeholder="Wie soll die Antwort angepasst werden? z.B. 'Kürzer fassen' oder 'Preis noch nicht nennen'…"></textarea>
+        <div class="reply-adjust-actions">
+          <button class="btn btn-ghost" style="padding:7px 12px;font-size:12px;" onclick="closeAdjust()">Abbrechen</button>
+          <button class="btn btn-primary" style="padding:7px 14px;font-size:12px;" onclick="applyAdjust()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:13px;height:13px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            Anwenden
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sticky Footer -->
+    <div class="reply-footer">
+      <button class="btn btn-secondary" style="flex:0 0 auto;" onclick="toggleAdjust()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+        Anpassen
+      </button>
+      <button class="btn btn-ghost" style="flex:0 0 auto;padding:10px 11px;" onclick="copyReply()" title="Kopieren">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+      </button>
+      <button class="btn btn-erp" style="flex:1;justify-content:center;" onclick="insertIntoOutlook()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        In Outlook einfügen
+      </button>
+    </div>
+  </div>
+
+</div><!-- end .app -->
+
+<!-- ═══════════════════════════════════
+     MODALS
+═══════════════════════════════════ -->
+
+<!-- Produkt wählen -->
+<div class="modal-overlay" id="productModal" onclick="closeModalOnBg(event,'productModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Produkt ändern</div>
+        <div class="modal-sub">KI-Erkennung überschreiben</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('productModal')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="product-grid" id="productGrid">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('productModal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="applyProduct()">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Parameter bearbeiten -->
+<div class="modal-overlay" id="paramModal" onclick="closeModalOnBg(event,'paramModal')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="paramModalTitle">Parameter bearbeiten</div>
+        <div class="modal-sub" id="paramModalSub">KI-Erkennung prüfen oder überschreiben</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('paramModal')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" id="paramModalBody">
+      <!-- rendered by JS -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('paramModal')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="applyParamEdit()">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" id="toastIcon">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+  </svg>
+  <span id="toastMsg">Gespeichert</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+
+const ICON = {
+  book:    `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`,
+  softcover:`<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>`,
+  card:    `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>`,
+  flyer:   `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
+  poster:  `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`,
+  letter:  `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`,
+  catalog: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>`,
+  library: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>`,
+};
+
+const PRODUCTS = [
+  { id:'hardcover',    name:'Hardcover-Katalog',   icon: ICON.book,     params: 8 },
+  { id:'softcover',    name:'Softcover-Broschüre', icon: ICON.softcover,params: 6 },
+  { id:'visitenkarten',name:'Visitenkarten',        icon: ICON.card,     params: 5 },
+  { id:'flyer',        name:'Flyer/Folder',         icon: ICON.flyer,    params: 5 },
+  { id:'poster',       name:'Poster/Plakat',        icon: ICON.poster,   params: 4 },
+  { id:'briefpapier',  name:'Briefpapier',          icon: ICON.letter,   params: 4 },
+  { id:'katalog',      name:'Produktkatalog',       icon: ICON.catalog,  params: 7 },
+  { id:'buch',         name:'Buch (Fadenheftung)',  icon: ICON.library,  params: 9 },
+];
+
+let currentProduct = 'hardcover';
+let pendingProduct = 'hardcover';
+
+// Parameters extracted from current email
+let params = [
+  { id:'format',       name:'Format',              value:'148 x 210 mm (DIN A5)', confidence:98, status:'ok',   type:'select', options:['DIN A4','DIN A5','DIN A6','148x210mm','210x210mm','Benutzerdefiniert'] },
+  { id:'auflage',      name:'Auflage',              value:'1.500 Stück',           confidence:99, status:'ok',   type:'number', unit:'Stück', min:100 },
+  { id:'seiten',       name:'Seitenanzahl',         value:'128 Seiten',            confidence:97, status:'ok',   type:'select', options:['64 Seiten','80 Seiten','96 Seiten','112 Seiten','128 Seiten','144 Seiten','160 Seiten'] },
+  { id:'inhalt_farbe', name:'Innenteil Farbigkeit', value:'4/4 farbig',            confidence:95, status:'ok',   type:'select', options:['1/0 s/w','1/1 s/w','4/0 farbig','4/4 farbig'] },
+  { id:'inhalt_papier',name:'Innenteil Papier',     value:'135 g/m²',              confidence:91, status:'ok',   type:'select', options:['90 g/m²','115 g/m²','135 g/m²','150 g/m²','170 g/m²'] },
+  { id:'umschlag',     name:'Umschlag Papier',      value:'300 g/m²',              confidence:88, status:'warn', type:'select', options:['250 g/m²','300 g/m²','350 g/m²','400 g/m²'] },
+  { id:'bindung',      name:'Bindung',              value:'Fadenheftung',          confidence:96, status:'ok',   type:'select', options:['Klebebindung','Fadenheftung','Spiralbindung','Ringbuch'] },
+  { id:'veredelung',   name:'Umschlag Veredelung',  value:'Hochglanz-Laminierung + Spotlack', confidence:78, status:'warn', type:'select', options:['Ohne','Matt-Laminierung','Hochglanz-Laminierung','Softtouch','UV-Lack','Spotlack'] },
+  { id:'liefertermin', name:'Liefertermin',         value:'KW 38',                 confidence:99, status:'ok',   type:'text' },
+  { id:'druckdaten',   name:'Druckdateiformat',     value:null,                    confidence:0,  status:'miss', type:'select', options:['PDF/X-1a','PDF/X-4','AI','InDesign-Paket'] },
+];
+
+let editingParam = null;
+let editingValue = null;
+
+// ═══════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════
+function doLogin() {
+  const wrap = document.getElementById('loginWrap');
+  wrap.style.transition = 'opacity .4s ease';
+  wrap.style.opacity = '0';
+  setTimeout(() => {
+    wrap.classList.add('gone');
+    document.getElementById('mainApp').style.display = 'flex';
+    renderParams();
+    renderParamsSummary();
+    renderProductGrid();
+  }, 380);
+}
+
+// ═══════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ═══════════════════════════════════════
+// EMAIL EXPAND
+// ═══════════════════════════════════════
+function toggleEmailExpand() {
+  const card = document.getElementById('emailCard');
+  const btn  = document.getElementById('emailExpandBtn');
+  const fade = document.getElementById('emailFade');
+  const isExp = card.classList.toggle('email-expanded');
+  btn.querySelector('span') && (btn.querySelector('span').textContent = isExp ? 'Weniger anzeigen' : 'E-Mail vollständig anzeigen');
+  fade.style.display = isExp ? 'none' : 'block';
+}
+
+// ═══════════════════════════════════════
+// PARAMS RENDER
+// ═══════════════════════════════════════
+function statusLabel(p) {
+  if (p.status === 'corrected') return '<span class="status-label status-manual">Manuell prüfen</span>';
+  if (p.status === 'miss')      return '<span class="status-label status-miss">Nicht erkannt</span>';
+  if (p.status === 'warn')      return '<span class="status-label status-warn">Manuell prüfen</span>';
+  return '<span class="status-label status-ok">Verifiziert</span>';
+}
+
+function iconClass(p) {
+  if (p.status === 'miss')    return 'miss';
+  if (p.status === 'corrected') return 'edit';
+  if (p.confidence >= 90)     return 'ok';
+  return 'warn';
+}
+
+function iconSvg(p) {
+  if (p.status === 'miss') return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`;
+  if (p.status === 'corrected') return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
+  return `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>`;
+}
+
+function renderParams() {
+  const list = document.getElementById('paramsList');
+  list.innerHTML = params.map(p => `
+    <div class="param-row ${p.status === 'miss' ? 'missing' : ''} ${p.status === 'corrected' ? 'corrected' : ''}"
+         onclick="openParamModal('${p.id}')">
+      <div class="param-icon ${iconClass(p)}">${iconSvg(p)}</div>
+      <div class="param-body">
+        <div class="param-name">${p.name}</div>
+        <div class="param-value ${p.status === 'miss' ? 'missing' : ''}">${p.value || 'Nicht erkannt — bitte angeben'}</div>
+      </div>
+      <div class="param-right">
+        ${statusLabel(p)}
+        <button class="param-edit-btn" onclick="event.stopPropagation();openParamModal('${p.id}')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderParamsSummary() {
+  const el = document.getElementById('paramsSummary');
+  el.innerHTML = params.map(p => `
+    <div class="ps-row">
+      <span class="ps-key">${p.name}</span>
+      <span class="ps-val">${p.value || '—'}</span>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════
+// PRODUCT MODAL
+// ═══════════════════════════════════════
+function renderProductGrid() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = PRODUCTS.map(p => `
+    <div class="product-option ${p.id === currentProduct ? 'selected' : ''}"
+         onclick="selectProductOption('${p.id}', this)">
+      <div class="product-option-icon">${p.icon}</div>
+      <div class="product-option-name">${p.name}</div>
+      <div class="product-option-count">${p.params} Parameter</div>
+    </div>
+  `).join('');
+}
+
+function openProductModal() {
+  pendingProduct = currentProduct;
+  renderProductGrid();
+  openModal('productModal');
+}
+
+function selectProductOption(id, el) {
+  document.querySelectorAll('.product-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  pendingProduct = id;
+}
+
+function applyProduct() {
+  currentProduct = pendingProduct;
+  const prod = PRODUCTS.find(p => p.id === currentProduct);
+  if (prod) {
+    document.querySelector('.product-chip').innerHTML = `
+      <span class="product-chip-icon">${prod.icon}</span>
+      ${prod.name}
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px;opacity:.7;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>`;
+  }
+  closeModal('productModal');
+  showToast('Produkt geändert: ' + (prod ? prod.name : ''), 'success');
+}
+
+// ═══════════════════════════════════════
+// PARAM MODAL
+// ═══════════════════════════════════════
+function openParamModal(id) {
+  editingParam = params.find(p => p.id === id);
+  if (!editingParam) return;
+  editingValue = editingParam.value;
+
+  document.getElementById('paramModalTitle').textContent = editingParam.name;
+  document.getElementById('paramModalSub').textContent =
+    editingParam.status === 'miss' ? 'Wert fehlt — bitte manuell eingeben'
+    : editingParam.status === 'corrected' ? 'Manuell bearbeitet'
+    : editingParam.status === 'warn' ? 'Bitte manuell prüfen'
+    : 'Verifiziert';
+
+  let bodyHTML = `
+    <div class="param-edit-header-row">
+      <div class="param-edit-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+      </div>
+      <div>
+        <div class="param-edit-name">${editingParam.name}</div>
+        <div class="param-edit-type">
+          ${editingParam.type === 'select' ? 'Auswahl' : editingParam.type === 'number' ? 'Zahlenwert' : 'Freitext'}
+          ${editingParam.unit ? ' · ' + editingParam.unit : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (editingParam.type === 'select' && editingParam.options) {
+    bodyHTML += `<div class="options-list" id="optionsList">` +
+      editingParam.options.map(o => `
+        <div class="option-item ${editingParam.value === o ? 'selected' : ''}"
+             onclick="selectParamOption('${o.replace(/'/g,"\\'")}', this)">
+          <div class="option-radio"></div>
+          <div class="option-label">${o}</div>
+        </div>
+      `).join('') +
+    `</div>`;
+  } else if (editingParam.type === 'number') {
+    bodyHTML += `
+      <div class="field-group">
+        <label class="field-label">Wert ${editingParam.unit ? '(' + editingParam.unit + ')' : ''}</label>
+        <input class="field-input" type="number" id="paramNumberInput"
+          value="${editingParam.value ? editingParam.value.replace(/[^0-9.]/g,'') : ''}"
+          placeholder="${editingParam.min ? 'Min: ' + editingParam.min : ''}"
+          oninput="editingValue=this.value + ' ${editingParam.unit||''}'">
+      </div>`;
+  } else {
+    bodyHTML += `
+      <div class="field-group">
+        <label class="field-label">Wert</label>
+        <input class="field-input" type="text" id="paramTextInput"
+          value="${editingParam.value || ''}"
+          placeholder="Wert eingeben…"
+          oninput="editingValue=this.value">
+      </div>`;
+  }
+
+  document.getElementById('paramModalBody').innerHTML = bodyHTML;
+  openModal('paramModal');
+}
+
+function selectParamOption(val, el) {
+  document.querySelectorAll('#optionsList .option-item').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  editingValue = val;
+}
+
+function applyParamEdit() {
+  if (!editingParam) return;
+  if (editingValue !== null && editingValue !== undefined && String(editingValue).trim() !== '') {
+    editingParam.value = String(editingValue).trim();
+    editingParam.status = 'corrected';
+  }
+  renderParams();
+  renderParamsSummary();
+  closeModal('paramModal');
+  showToast(editingParam.name + ' aktualisiert', 'success');
+}
+
+// ═══════════════════════════════════════
+// REANALYSE
+// ═══════════════════════════════════════
+function reanalyse() {
+  const list = document.getElementById('paramsList');
+  list.style.opacity = '0.4';
+  list.style.transition = 'opacity .2s';
+  setTimeout(() => {
+    list.style.opacity = '1';
+    showToast('KI-Analyse aktualisiert', 'success');
+  }, 1200);
+}
+
+// ═══════════════════════════════════════
+// CREATE ORDER (go to Auftrag tab)
+// ═══════════════════════════════════════
+function createOrder() {
+  const missingCount = params.filter(p => p.status === 'miss').length;
+  if (missingCount > 0) {
+    showToast(`${missingCount} Parameter fehlt noch`, 'warn');
+    return;
+  }
+  renderParamsSummary();
+  switchTab('auftrag', document.querySelectorAll('.tab-btn')[1]);
+  showToast('Auftrag vorbereitet', 'success');
+}
+
+// ═══════════════════════════════════════
+// ERP PUSH
+// ═══════════════════════════════════════
+function launchErp() {
+  const form = document.getElementById('auftragForm');
+  const loading = document.getElementById('erpLoading');
+  const success = document.getElementById('erpSuccess');
+
+  form.style.display = 'none';
+  loading.style.display = 'flex';
+
+  setTimeout(() => {
+    loading.style.display = 'none';
+    success.classList.add('show');
+    const orderNo = 'DA-2025-0' + (9180 + Math.floor(Math.random()*20));
+    document.getElementById('erpOrderNo').textContent = 'Auftragsnr.: ' + orderNo;
+
+    // Update status bar
+    const bar = document.getElementById('orderStatusBar');
+    bar.classList.add('success');
+    bar.querySelector('svg').innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>`;
+    bar.querySelector('.order-status-text').textContent = 'Auftrag ' + orderNo + ' erfolgreich in Multiflow angelegt.';
+  }, 2400);
+}
+
+function resetErp() {
+  const form = document.getElementById('auftragForm');
+  const success = document.getElementById('erpSuccess');
+  success.classList.remove('show');
+  form.style.display = 'flex';
+  switchTab('analyse', document.querySelectorAll('.tab-btn')[0]);
+}
+
+// ═══════════════════════════════════════
+// REPLY TAB
+// ═══════════════════════════════════════
+const QUICK_REPLIES = {
+  'Angebot anfordern':
+`Sehr geehrter Herr Fischer,
+
+vielen Dank für Ihre Anfrage. Gerne unterbreiten wir Ihnen ein individuelles Angebot für Ihren Hardcover-Katalog zur Herbstsaison 2025.
+
+Wir werden Ihnen das vollständige Angebot innerhalb von 24 Stunden zukommen lassen.
+
+Mit freundlichen Grüßen
+Fokina Druckerei GmbH`,
+
+  'Rückfrage: Druckdaten fehlen':
+`Sehr geehrter Herr Fischer,
+
+vielen Dank für Ihre Anfrage zum Hardcover-Katalog.
+
+Für die Kalkulation benötigen wir noch folgende Angaben:
+- Druckdateiformat (PDF/X-1a oder PDF/X-4)
+- Farbprofil (ISO Coated v2 oder PSO Coated v3)
+
+Bitte senden Sie uns diese Informationen, damit wir Ihr Angebot erstellen können.
+
+Mit freundlichen Grüßen
+Fokina Druckerei GmbH`,
+
+  'Liefertermin bestätigen':
+`Sehr geehrter Herr Fischer,
+
+wir bestätigen den gewünschten Liefertermin KW 38 für Ihren Hardcover-Katalog (1.500 Exemplare, DIN A5).
+
+Voraussetzung ist der Eingang druckfertiger Daten bis spätestens KW 35. Wir melden uns mit dem vollständigen Angebot.
+
+Mit freundlichen Grüßen
+Fokina Druckerei GmbH`,
+
+  'Auftrag bestätigen':
+`Sehr geehrter Herr Fischer,
+
+wir bestätigen den Eingang Ihres Auftrags für 1.500 Hardcover-Kataloge (DIN A5, Herbstsaison 2025).
+
+Ihre Auftragsnummer: DA-2025-09183
+Voraussichtliche Lieferung: KW 38
+
+Bei Rückfragen stehen wir Ihnen jederzeit zur Verfügung.
+
+Mit freundlichen Grüßen
+Fokina Druckerei GmbH`,
+};
+
+const TONE_VARIANTS = {
+  formell: null, // default above
+  freundlich: (text) => text.replace('Sehr geehrter', 'Guten Tag').replace('Mit freundlichen Grüßen', 'Viele Grüße'),
+  kurz: (text) => {
+    const lines = text.split('\n').filter(l => l.trim());
+    return lines.slice(0,3).join('\n') + '\n\nMit freundlichen Grüßen\nFokina Druckerei GmbH';
+  },
+};
+
+let currentTone = 'formell';
+let baseReplyText = document.getElementById('replyText') ? document.getElementById('replyText').value : '';
+
+function updateCharCount() {
+  const ta = document.getElementById('replyText');
+  const cc = document.getElementById('replyCharCount');
+  if (ta && cc) cc.textContent = ta.value.length + ' Zeichen';
+}
+
+function useQuickReply(btn) {
+  const text = QUICK_REPLIES[btn.textContent.trim()];
+  if (!text) return;
+  baseReplyText = text;
+  applyToneToTextarea(text);
+  showToast('Schnellantwort eingefügt', 'success');
+}
+
+function setTone(btn, tone) {
+  document.querySelectorAll('.tone-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentTone = tone;
+  const ta = document.getElementById('replyText');
+  if (!ta) return;
+  applyToneToTextarea(baseReplyText || ta.value);
+}
+
+function applyToneToTextarea(text) {
+  const ta = document.getElementById('replyText');
+  if (!ta) return;
+  const fn = TONE_VARIANTS[currentTone];
+  ta.value = fn ? fn(text) : text;
+  updateCharCount();
+}
+
+function regenReply() {
+  const btn = document.querySelector('.reply-regen-btn');
+  btn.classList.add('spinning');
+  const ta = document.getElementById('replyText');
+  ta.style.opacity = '0.4';
+  ta.style.transition = 'opacity .2s';
+  setTimeout(() => {
+    ta.style.opacity = '1';
+    btn.classList.remove('spinning');
+    showToast('Antwort neu generiert', 'success');
+  }, 1400);
+}
+
+function toggleAdjust() {
+  const wrap = document.getElementById('replyAdjustWrap');
+  const show = wrap.style.display === 'none';
+  wrap.style.display = show ? 'block' : 'none';
+  if (show) document.getElementById('replyAdjustInput').focus();
+}
+
+function closeAdjust() {
+  document.getElementById('replyAdjustWrap').style.display = 'none';
+}
+
+function applyAdjust() {
+  const instruction = document.getElementById('replyAdjustInput').value.trim();
+  if (!instruction) return;
+  const ta = document.getElementById('replyText');
+  ta.style.opacity = '0.4';
+  setTimeout(() => {
+    ta.style.opacity = '1';
+    showToast('Antwort angepasst', 'success');
+    document.getElementById('replyAdjustInput').value = '';
+    closeAdjust();
+  }, 1100);
+}
+
+function copyReply() {
+  const ta = document.getElementById('replyText');
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    showToast('In Zwischenablage kopiert', 'success');
+  }).catch(() => {
+    showToast('Kopieren nicht möglich', 'error');
+  });
+}
+
+function insertIntoOutlook() {
+  const ta = document.getElementById('replyText');
+  if (typeof Office !== 'undefined' && Office.context && Office.context.mailbox) {
+    Office.context.mailbox.item.body.setAsync(ta.value, { coercionType: Office.CoercionType.Text });
+  }
+  showToast('In Outlook eingefügt', 'success');
+}
+
+// Init char count
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('replyText');
+  if (ta) {
+    baseReplyText = ta.value;
+    updateCharCount();
+    ta.addEventListener('input', updateCharCount);
+  }
+});
+
+
+// ═══════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function closeModalOnBg(e, id) {
+  if (e.target === document.getElementById(id)) closeModal(id);
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+let toastTimer;
+function showToast(msg, type='') {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.className = 'toast show ' + type;
+  document.getElementById('toastMsg').textContent = msg;
+  const icons = {
+    success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>',
+    warn:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>',
+    error:   '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>',
+  };
+  document.getElementById('toastIcon').innerHTML = icons[type] || icons.success;
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 2600);
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal('productModal');
+    closeModal('paramModal');
+    closeAdjust();
+  }
+});
+
+// If running in Outlook, init Office.js
+if (typeof Office !== 'undefined') {
+  Office.onReady(() => { /* hook into Office mail item here */ });
+}
+</script>
+</body>
+</html>
